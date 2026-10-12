@@ -22,11 +22,12 @@ def test_crop_mouse_gesture(qtbot):
     canvas.begin_crop()
     start = canvas.mapFromScene(QPointF(20, 30))
     end = canvas.mapFromScene(QPointF(120, 100))
-    with qtbot.waitSignal(canvas.crop_committed) as signal:
-        QTest.mousePress(canvas.viewport(), Qt.MouseButton.LeftButton, pos=start)
-        QTest.mouseMove(canvas.viewport(), end)
-        QTest.mouseRelease(canvas.viewport(), Qt.MouseButton.LeftButton, pos=end)
-    assert signal.args == [20, 30, 100, 70]
+    results = []
+    canvas.crop_committed.connect(lambda *values: results.append(values))
+    QTest.mousePress(canvas.viewport(), Qt.MouseButton.LeftButton, pos=start)
+    QTest.mouseMove(canvas.viewport(), end)
+    QTest.mouseRelease(canvas.viewport(), Qt.MouseButton.LeftButton, pos=end)
+    assert results == [(20, 30, 100, 70)]
 
 
 @pytest.mark.parametrize("operation", [

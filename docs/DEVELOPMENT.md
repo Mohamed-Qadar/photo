@@ -76,6 +76,28 @@ on a worker; stale results cannot replace a document edited during preparation.
 Physical dimensions remain correct in PDF export. Example-size disclaimers remain
 visible. Generated sheets are marked unsaved until the user saves them.
 
+## Phase 6 — localization, recovery and performance
+
+English/Somali display strings use an offline catalogue and live widget translation.
+Settings retain the language and theme. Switching language preserves the document,
+selection, user text and undo history; translated combo labels resolve to stable
+model keys. Qt standard buttons use the catalogue translator. Recent saved projects
+are available from the home screen.
+
+Autosave writes an isolated editable recovery project every 30 seconds when dirty,
+on a worker. Recovery discovery offers interrupted projects without overwriting
+the user's original file. Normal save/discard/close removes this instance's recovery
+files. Autosave skips active mouse gestures; switching documents invalidates pending
+writes. Native project replacement is atomic, with regression coverage for failure.
+
+UI previews are limited to 1600 pixels on the longest side and remain positioned
+in document coordinates. Export stays full resolution. Row-tiled alpha compositing
+reduces float intermediates and fixes multiply blending over transparency. Large
+filters/transforms and print-sheet creation use guarded background jobs. File open,
+save and export use worker-backed modal progress while the UI event loop continues.
+Images/canvases above 40 megapixels are rejected before allocation; EXIF orientation
+is honored. Older project manifests default missing transform fields to identity.
+
 Runtime, installer and package metadata use version 1.2.0. The Phase 1 report is
 historical. The source tree has progressed beyond that initial delivery. Autosave
 and the interactive object canvas are subsequent phases, not baseline capabilities.

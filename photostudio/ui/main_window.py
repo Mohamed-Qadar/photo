@@ -1,12 +1,13 @@
 """MainWindow — menus, toolbar, docks, canvas/home stack, wiring to controller."""
 from __future__ import annotations
+from .i18n import tr, source_text
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QSettings, QTimer
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (QDockWidget, QFileDialog, QInputDialog, QMainWindow,
-                               QMessageBox, QStackedWidget, QStatusBar, QWidget, QScrollArea, QToolBar, QColorDialog)
+                               QMessageBox, QStackedWidget, QStatusBar, QWidget, QScrollArea, QToolBar, QColorDialog, QApplication)
 
 from .. import (__app_name__, __author__, __author_specialization__,
                 __author_title__, __contact_email__, __github_url__, __version__)
@@ -24,13 +25,27 @@ PROJECT_FILTER = "PhotoStudio Project (*.pstudio)"
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle(__app_name__)
+        from ..core.recovery import data_root
+        from . import i18n
+        self.settings = QSettings(str(data_root() / "settings.ini"), QSettings.Format.IniFormat)
+        i18n.set_language(self.settings.value("language", "en"))
+        app = QApplication.instance()
+        if not hasattr(app, "_photostudio_translator"):
+            app._photostudio_translator = i18n.CatalogueTranslator(app)
+            app.installTranslator(app._photostudio_translator)
+        self.setWindowTitle(tr(__app_name__))
         self.resize(1280, 820)
         self.controller = EditorController(self)
+        from .autosave import Autosave
+        from .file_jobs import FileJobs
+        self.autosave = Autosave(self.controller, self)
+        self.file_jobs = FileJobs(self)
+        self._recovery_path = None
         from .workers import RenderQueue
-        self.render_queue = RenderQueue(self)
+        from ..core.pipeline import composite_preview
+        self.render_queue = RenderQueue(self, composite_preview)
         self.render_queue.ready.connect(self._display_render)
-        self.render_queue.failed.connect(lambda msg: self.statusBar().showMessage(msg, 8000))
+        self.render_queue.failed.connect(lambda msg: self.statusBar().showMessage(tr(msg), 8000))
         self._reset_render_view = False
 
         self._stack = QStackedWidget()
@@ -48,8 +63,10 @@ class MainWindow(QMainWindow):
         self._build_menus()
         self._build_tools()
         self._wire()
-        self.apply_theme(dark=True)
+        self.apply_theme(dark=self.settings.value("dark", True, type=bool))
         self._show_home()
+        self.home.set_recent(self.settings.value("recent", [], type=list))
+        QTimer.singleShot(250, self._offer_recovery)
 
     # ---- setup --------------------------------------------------------
     def _build_docks(self):
@@ -60,7 +77,7 @@ class MainWindow(QMainWindow):
             (self.adjust_panel, "Properties", Qt.DockWidgetArea.RightDockWidgetArea),
             (self.layers_panel, "Layers", Qt.DockWidgetArea.RightDockWidgetArea),
         ]:
-            dock = QDockWidget(title, self)
+            dock = QDockWidget(tr(title), self)
             if widget is self.adjust_panel:
                 scroll = QScrollArea()
                 scroll.setWidgetResizable(True)
@@ -77,7 +94,7 @@ class MainWindow(QMainWindow):
             dock.setVisible(visible)
 
     def _act(self, text, slot, shortcut=None, enabled=True):
-        action = QAction(text, self)
+        action = QAction(tr(text), self)
         action.triggered.connect(slot)
         if shortcut:
             action.setShortcut(QKeySequence(shortcut))
@@ -87,13 +104,14 @@ class MainWindow(QMainWindow):
     def _build_menus(self):
         mb = self.menuBar()
 
-        m_file = mb.addMenu("&File")
+        m_file = mb.addMenu(tr("&File"))
         m_file.addAction(self._act("New Project…", self.on_new, "Ctrl+N"))
         m_file.addAction(self._act("Open Image…", self.on_open_image, "Ctrl+O"))
         m_file.addAction(self._act("Open Project…", self.on_open_project, "Ctrl+Shift+O"))
         m_file.addAction(self._act("Import Image Layer…", self.on_import_image, "Ctrl+Shift+I"))
         m_file.addAction(self._act("Replace Selected Image…", lambda: self.on_import_image(True)))
         m_file.addAction(self._act("Import SVG…", self.on_import_svg))
+        m_file.addAction(self._act("Recover project", self._offer_recovery))
         m_file.addSeparator()
         self.act_save = self._act("Save Project", self.on_save, "Ctrl+S")
         self.act_save_as = self._act("Save Project As…", self.on_save_as, "Ctrl+Shift+S")
@@ -106,13 +124,13 @@ class MainWindow(QMainWindow):
         m_file.addAction(self._act("Home", self._show_home))
         m_file.addAction(self._act("Exit", self.close, "Ctrl+Q"))
 
-        m_edit = mb.addMenu("&Edit")
+        m_edit = mb.addMenu(tr("&Edit"))
         self.act_undo = self._act("Undo", self.controller.undo, "Ctrl+Z")
         self.act_redo = self._act("Redo", self.controller.redo, "Ctrl+Y")
         m_edit.addAction(self.act_undo)
         m_edit.addAction(self.act_redo)
 
-        m_image = mb.addMenu("&Image")
+        m_image = mb.addMenu(tr("&Image"))
         self.act_crop = self._act("Crop (drag on canvas)", self.on_begin_crop)
         m_image.addAction(self.act_crop)
         m_image.addAction(self._act("Rotate 90° CW", lambda: self.controller.rotate_90(1)))
@@ -121,7 +139,7 @@ class MainWindow(QMainWindow):
         m_image.addAction(self._act("Flip Vertical", lambda: self.controller.flip(False)))
         m_image.addAction(self._act("Resize…", self.on_resize))
 
-        m_insert = mb.addMenu("&Insert")
+        m_insert = mb.addMenu(tr("&Insert"))
         m_insert.addAction(self._act("Text", lambda: self.on_add_text(), "Ctrl+T"))
         m_insert.addSeparator()
         for label, shape in [("Rectangle", "rectangle"), ("Rounded Rectangle", "rounded"),
@@ -131,7 +149,7 @@ class MainWindow(QMainWindow):
         m_insert.addSeparator()
         m_insert.addAction(self._act("Delete Layer", self.controller.delete_selection, "Del"))
 
-        m_arrange = mb.addMenu("&Arrange")
+        m_arrange = mb.addMenu(tr("&Arrange"))
         for label, where in [("Align Left", "left"), ("Align Center", "hcenter"),
                              ("Align Right", "right"), ("Align Top", "top"),
                              ("Align Middle", "vcenter"), ("Align Bottom", "bottom")]:
@@ -144,36 +162,36 @@ class MainWindow(QMainWindow):
         m_arrange.addAction(self._act("Group Selected", self.on_group, "Ctrl+G"))
         m_arrange.addAction(self._act("Ungroup", self.controller.ungroup_active, "Ctrl+Shift+G"))
 
-        m_filter = mb.addMenu("&Filter")
+        m_filter = mb.addMenu(tr("&Filter"))
         from ..imaging.filters import FILTERS
         for fname in FILTERS:
             m_filter.addAction(self._act(fname, lambda _=False, n=fname: self.controller.apply_filter(n)))
 
-        m_beauty = mb.addMenu("&Beauty")
+        m_beauty = mb.addMenu(tr("&Beauty"))
         from ..imaging.beauty import BEAUTY_FILTERS
         for bname in BEAUTY_FILTERS:
             m_beauty.addAction(self._act(bname, lambda _=False, n=bname: self.controller.apply_beauty(n)))
         m_beauty.addSeparator()
-        self.act_heal = QAction("Spot Removal (click skin)", self)
+        self.act_heal = QAction(tr("Spot Removal (click skin)"), self)
         self.act_heal.setCheckable(True)
         self.act_heal.toggled.connect(self._on_heal_toggled)
         m_beauty.addAction(self.act_heal)
 
-        m_passport = mb.addMenu("&Passport")
+        m_passport = mb.addMenu(tr("&Passport"))
         m_passport.addAction(self._act("Replace Background…", self.on_replace_bg))
         m_passport.addAction(self._act("Create 10×15 cm Sheet", lambda: self.on_make_sheet("10x15")))
         m_passport.addAction(self._act("Create A4 Sheet", lambda: self.on_make_sheet("a4")))
         m_passport.addAction(self._act("Export PDF…", self.on_export_pdf))
-        self.act_guides = QAction("Show Face Guides", self)
+        self.act_guides = QAction(tr("Show Face Guides"), self)
         self.act_guides.setCheckable(True)
         self.act_guides.toggled.connect(self.canvas.set_face_guides)
         m_passport.addAction(self.act_guides)
 
-        m_view = mb.addMenu("&View")
+        m_view = mb.addMenu(tr("&View"))
         m_view.addAction(self._act("Zoom In", self.canvas.zoom_in, "Ctrl+="))
         m_view.addAction(self._act("Zoom Out", self.canvas.zoom_out, "Ctrl+-"))
         m_view.addAction(self._act("Fit to Window", self.canvas.fit_to_window, "Ctrl+0"))
-        self.act_compare = QAction("Before session", self)
+        self.act_compare = QAction(tr("Before session"), self)
         self.act_compare.setCheckable(True)
         self.act_compare.setShortcut(QKeySequence("\\"))
         self.act_compare.toggled.connect(self._on_compare_toggled)
@@ -182,12 +200,12 @@ class MainWindow(QMainWindow):
         m_view.addAction(self._act("Dark Theme", lambda: self.apply_theme(dark=True)))
         m_view.addAction(self._act("Light Theme", lambda: self.apply_theme(dark=False)))
 
-        m_help = mb.addMenu("&Help")
+        m_help = mb.addMenu(tr("&Help"))
         m_help.addAction(self._act("Settings…", self.on_settings))
         m_help.addAction(self._act("About", self.on_about))
 
     def _build_tools(self):
-        self.tools = QToolBar("Tools", self)
+        self.tools = QToolBar(tr("Tools"), self)
         self.tools.setMovable(False)
         self.tools.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
         self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.tools)
@@ -202,15 +220,18 @@ class MainWindow(QMainWindow):
             ("Rotate ↻", lambda: self.controller.rotate_90(), None),
             ("Fit canvas", self.canvas.fit_to_window, None)]:
             action = self._act(title, slot, shortcut)
-            action.setToolTip(title + (f" ({shortcut})" if shortcut else ""))
+            if shortcut:
+                action.setShortcutContext(Qt.ShortcutContext.WidgetShortcut)
+                self.canvas.addAction(action)
+            action.setToolTip(tr(title + (f" ({shortcut})" if shortcut else "")))
             self.tools.addAction(action)
-        self.snap_action = QAction("Snapping", self)
+        self.snap_action = QAction(tr("Snapping"), self)
         self.snap_action.setCheckable(True)
         self.snap_action.setChecked(True)
-        self.snap_action.setToolTip("Snap to canvas and object edges; Space + drag to pan")
+        self.snap_action.setToolTip(tr("Snap to canvas and object edges; Space + drag to pan"))
         self.snap_action.toggled.connect(lambda value: setattr(self.canvas, "snap_enabled", value))
         self.tools.addAction(self.snap_action)
-        self.quick = QToolBar("Project", self)
+        self.quick = QToolBar(tr("Project"), self)
         self.quick.setMovable(False)
         self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.quick)
         for action in (self.act_save, self.act_export, self.act_undo, self.act_redo, self.act_compare):
@@ -232,7 +253,7 @@ class MainWindow(QMainWindow):
     def on_import_image(self, replace=False):
         if self.controller.document is None:
             return
-        path, _ = QFileDialog.getOpenFileName(self, "Replace image" if replace else "Import image layer", "", IMAGE_FILTER)
+        path, _ = QFileDialog.getOpenFileName(self, tr("Replace image" if replace else "Import image layer"), "", IMAGE_FILTER)
         if path:
             try:
                 self.controller.import_image(path, replace=bool(replace))
@@ -248,20 +269,24 @@ class MainWindow(QMainWindow):
 
     def _wire(self):
         self.home.workspace_selected.connect(self.on_workspace)
-        self.controller.processing_error.connect(lambda msg: self.statusBar().showMessage(msg, 8000))
+        self.home.recent_selected.connect(self._open_recent)
+        self.autosave.failed.connect(lambda message: self.statusBar().showMessage(tr(message), 8000))
+        self.controller.processing_error.connect(lambda msg: self.statusBar().showMessage(tr(msg), 8000))
 
         self.controller.document_changed.connect(self._render)
         self.controller.document_opened.connect(self._on_document_opened)
         self.controller.history_changed.connect(self._update_actions)
+        self.controller.history_changed.connect(self._update_title)
 
         self.canvas.crop_committed.connect(self.controller.crop)
         self.canvas.point_clicked.connect(self._on_canvas_point)
         self.canvas.zoom_changed.connect(
-            lambda s: self.statusBar().showMessage(f"Zoom {int(s * 100)}%", 2000))
+            lambda s: self.statusBar().showMessage(tr(f"Zoom {int(s * 100)}%"), 2000))
 
     # ---- theme / nav --------------------------------------------------
     def apply_theme(self, dark: bool):
         self._dark = dark
+        self.settings.setValue("dark", dark)
         tokens = theme.DARK if dark else theme.LIGHT
         self.setStyleSheet(theme.stylesheet(tokens))
         self.canvas.setBackgroundBrush(Qt.GlobalColor.transparent)
@@ -270,6 +295,7 @@ class MainWindow(QMainWindow):
         from .settings_dialog import SettingsDialog
         dlg = SettingsDialog(self, dark=getattr(self, "_dark", True))
         dlg.theme_changed.connect(self.apply_theme)
+        dlg.language_changed.connect(lambda language: self.change_language(language, dlg))
         dlg.exec()
 
     def _show_home(self):
@@ -302,13 +328,13 @@ class MainWindow(QMainWindow):
             self.on_open_image()
             if self.controller.document is not None:
                 self.statusBar().showMessage(
-                    "Beauty Studio: use the Beauty menu (smoothing, enhance, blur, spot removal)", 6000)
+                    tr("Beauty Studio: use the Beauty menu (smoothing, enhance, blur, spot removal)"), 6000)
         elif key == "passport":
             self.on_open_image()
             if self.controller.document is not None:
                 self.statusBar().showMessage(
-                    "Passport: Passport menu — replace background, create sheet, export PDF. "
-                    "Sizes are examples; verify official requirements.", 8000)
+                    tr("Passport: Passport menu — replace background, create sheet, export PDF. "
+                    "Sizes are examples; verify official requirements."), 8000)
 
     def on_pick_template(self):
         from .template_picker import TemplatePicker
@@ -319,10 +345,10 @@ class MainWindow(QMainWindow):
     def on_pick_preset(self, kind: str):
         from ..core.presets import SOCIAL_PRESETS, GRAPHIC_PRESETS
         presets = SOCIAL_PRESETS if kind == "social" else GRAPHIC_PRESETS
-        labels = [p.label for p in presets]
+        labels = [tr(p.label) for p in presets]
         label, ok = QInputDialog.getItem(
-            self, "Choose a canvas",
-            "Social media preset:" if kind == "social" else "Graphic design preset:",
+            self, tr("Choose a canvas"),
+            tr("Social media preset:" if kind == "social" else "Graphic design preset:"),
             labels, 0, False)
         if not ok:
             return
@@ -337,19 +363,22 @@ class MainWindow(QMainWindow):
 
     # ---- actions ------------------------------------------------------
     def on_new(self):
-        w, ok = QInputDialog.getInt(self, "New Design", "Width (px):", 1080, 1, 20000)
+        w, ok = QInputDialog.getInt(self, tr("New Design"), tr("Width (px):"), 1080, 1, 20000)
         if not ok:
             return
-        h, ok = QInputDialog.getInt(self, "New Design", "Height (px):", 1080, 1, 20000)
+        h, ok = QInputDialog.getInt(self, tr("New Design"), tr("Height (px):"), 1080, 1, 20000)
         if not ok:
             return
         if self._confirm_replace():
-            self.controller.new_document(w, h)
+            try:
+                self.controller.new_document(w, h)
+            except Exception as exc:
+                self._error("Could not create design", exc)
 
     def _on_heal_toggled(self, checked: bool):
         if checked:
             self.canvas.begin_point_tool()
-            self.statusBar().showMessage("Click a blemish to remove it (toggle off when done)", 5000)
+            self.statusBar().showMessage(tr("Click a blemish to remove it (toggle off when done)"), 5000)
         else:
             self.canvas.end_point_tool()
 
@@ -376,27 +405,27 @@ class MainWindow(QMainWindow):
         width, height, dpi, copies = dialog.values()
         try:
             self.controller.make_custom_sheet(width, height, sheet_key, dpi, copies)
-            self.statusBar().showMessage("Preparing print sheet… Export the finished sheet as PDF.", 5000)
+            self.statusBar().showMessage(tr("Preparing print sheet… Export the finished sheet as PDF."), 5000)
         except Exception as exc:
             self._error("Could not create print sheet", exc)
 
     def on_export_pdf(self):
         if self.controller.document is None:
             return
-        path, _ = QFileDialog.getSaveFileName(self, "Export PDF", "photo.pdf", "PDF (*.pdf)")
+        path, _ = QFileDialog.getSaveFileName(self, tr("Export PDF"), "photo.pdf", "PDF (*.pdf)")
         if path:
             try:
                 if not path.lower().endswith(".pdf"):
                     path += ".pdf"
-                self.controller.export_pdf(path)
-                self.statusBar().showMessage(f"Exported {Path(path).name}", 3000)
+                self._export_file(path, "pdf")
+                self.statusBar().showMessage(tr(f"Exported {Path(path).name}"), 3000)
             except Exception as exc:  # noqa: BLE001
                 self._error("Could not export PDF", exc)
 
     def on_import_svg(self):
         if self.controller.document is None:
             return
-        path, _ = QFileDialog.getOpenFileName(self, "Import SVG", "", "SVG (*.svg)")
+        path, _ = QFileDialog.getOpenFileName(self, tr("Import SVG"), "", "SVG (*.svg)")
         if path:
             try:
                 self.controller.import_svg(path)
@@ -408,23 +437,23 @@ class MainWindow(QMainWindow):
         self.controller.group_selected(ids)
 
     def on_add_text(self):
-        text, ok = QInputDialog.getText(self, "Add Text", "Text:", text="Your text")
+        text, ok = QInputDialog.getText(self, tr("Add Text"), tr("Text:"), text="Your text")
         if ok and text:
             self.controller.add_text(text)
 
     def on_open_image(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Open Image", "", IMAGE_FILTER)
+        path, _ = QFileDialog.getOpenFileName(self, tr("Open Image"), "", IMAGE_FILTER)
         if path and self._confirm_replace():
             try:
-                self.controller.open_image(path)
+                self._open_image(path)
             except Exception as exc:  # noqa: BLE001
                 self._error("Could not open image", exc)
 
     def on_open_project(self):
-        path, _ = QFileDialog.getOpenFileName(self, "Open Project", "", PROJECT_FILTER)
+        path, _ = QFileDialog.getOpenFileName(self, tr("Open Project"), "", PROJECT_FILTER)
         if path and self._confirm_replace():
             try:
-                self.controller.open_project(path)
+                self._open_project(path)
             except Exception as exc:  # noqa: BLE001
                 self._error("Could not open project", exc)
 
@@ -433,21 +462,21 @@ class MainWindow(QMainWindow):
             return self.on_save_as()
         else:
             try:
-                self.controller.save_project()
-                self.statusBar().showMessage("Project saved", 3000)
+                self._save_project(self.controller.project_path)
+                self.statusBar().showMessage(tr("Project saved"), 3000)
                 return True
             except Exception as exc:  # noqa: BLE001
                 self._error("Could not save", exc)
 
     def on_save_as(self):
-        path, _ = QFileDialog.getSaveFileName(self, "Save Project As", "untitled.pstudio",
+        path, _ = QFileDialog.getSaveFileName(self, tr("Save Project As"), "untitled.pstudio",
                                               PROJECT_FILTER)
         if path:
             if not path.endswith(".pstudio"):
                 path += ".pstudio"
             try:
-                self.controller.save_project(path)
-                self.statusBar().showMessage("Project saved", 3000)
+                self._save_project(path)
+                self.statusBar().showMessage(tr("Project saved"), 3000)
                 self._update_title()
                 return True
             except Exception as exc:  # noqa: BLE001
@@ -457,44 +486,44 @@ class MainWindow(QMainWindow):
         if self.controller.document is None:
             return
         path, selected = QFileDialog.getSaveFileName(
-            self, "Export", "export.png",
+            self, tr("Export"), "export.png",
             "PNG Image (*.png);;JPEG Image (*.jpg)")
         if not path:
             return
         fmt = "jpg" if selected.startswith("JPEG") or path.lower().endswith((".jpg", ".jpeg")) else "png"
         try:
-            self.controller.export(path, fmt)
-            self.statusBar().showMessage(f"Exported {Path(path).name}", 3000)
+            self._export_file(path, fmt)
+            self.statusBar().showMessage(tr(f"Exported {Path(path).name}"), 3000)
         except Exception as exc:  # noqa: BLE001
             self._error("Could not export", exc)
 
     def on_begin_crop(self):
         self.canvas.begin_crop()
-        self.statusBar().showMessage("Crop: drag a rectangle on the canvas (Esc to cancel)", 4000)
+        self.statusBar().showMessage(tr("Crop: drag a rectangle on the canvas (Esc to cancel)"), 4000)
 
     def on_resize(self):
         doc = self.controller.document
         if doc is None:
             return
-        w, ok = QInputDialog.getInt(self, "Resize", "Width (px):", doc.width, 1, 20000)
+        w, ok = QInputDialog.getInt(self, tr("Resize"), tr("Width (px):"), doc.width, 1, 20000)
         if not ok:
             return
-        h, ok = QInputDialog.getInt(self, "Resize", "Height (px):", doc.height, 1, 20000)
+        h, ok = QInputDialog.getInt(self, tr("Resize"), tr("Height (px):"), doc.height, 1, 20000)
         if not ok:
             return
         self.controller.resize(w, h)
 
     def on_about(self):
         QMessageBox.about(
-            self, "About PhotoStudio",
-            f"<h3>{__app_name__}</h3>"
+            self, tr("About PhotoStudio"),
+            tr(f"<h3>{__app_name__}</h3>"
             f"<p>Version {__version__} — offline-first photo &amp; design studio.<br>"
             "Phase 1 vertical slice (in active development).</p>"
             "<hr>"
             f"<p><b>Developed by {__author__}</b><br>"
             f"{__author_title__}, specializing in {__author_specialization__}.</p>"
             f"<p>Contact: <a href='mailto:{__contact_email__}'>{__contact_email__}</a><br>"
-            f"GitHub: <a href='{__github_url__}'>{__github_url__}</a></p>")
+            f"GitHub: <a href='{__github_url__}'>{__github_url__}</a></p>"))
 
     # ---- rendering / state -------------------------------------------
     def _on_document_opened(self):
@@ -508,8 +537,8 @@ class MainWindow(QMainWindow):
         self.canvas.read_only = checked
         self.canvas.cancel_gesture()
         self._render()
-        self.statusBar().showMessage("Showing original (before)" if checked
-                                     else "Showing edited (after)", 2000)
+        self.statusBar().showMessage(tr("Showing original (before)" if checked
+                                     else "Showing edited (after)"), 2000)
 
     def _render(self, reset_view: bool = False):
         use_adj = not (hasattr(self, "act_compare") and self.act_compare.isChecked())
@@ -521,37 +550,123 @@ class MainWindow(QMainWindow):
         self._update_title()
 
     def _display_render(self, pixels):
-        self.canvas.set_image(pixels, reset_view=self._reset_render_view)
+        source = self.controller.original_document if self.act_compare.isChecked() else self.controller.document
+        self.canvas.set_image(pixels, reset_view=self._reset_render_view, document_size=(source.width, source.height))
+        if self.act_guides.isChecked():
+            self.canvas.set_face_guides(True)
         self._reset_render_view = False
 
     def _update_actions(self):
         has_doc = self.controller.document is not None
         for act in (self.act_save, self.act_save_as, self.act_export, self.act_crop):
             act.setEnabled(has_doc)
+        layer = self.controller.document.active_layer if has_doc else None
+        self.act_crop.setEnabled(layer is not None and layer.pixels is not None and not layer.locked)
         self.act_undo.setEnabled(self.controller.can_undo)
         self.act_redo.setEnabled(self.controller.can_redo)
         if self.controller.history:
             ul = self.controller.history.undo_label()
             rl = self.controller.history.redo_label()
-            self.act_undo.setText(f"Undo {ul}".strip())
-            self.act_redo.setText(f"Redo {rl}".strip())
+            self.act_undo.setText(tr(f"Undo {ul}".strip()))
+            self.act_redo.setText(tr(f"Redo {rl}".strip()))
 
     def _update_title(self):
         doc = self.controller.document
         if doc is None:
-            self.setWindowTitle(__app_name__)
+            self.setWindowTitle(tr(__app_name__))
             return
         name = self.controller.project_path.name if self.controller.project_path else doc.name
-        self.setWindowTitle(f"{name} — {__app_name__}")
+        self.setWindowTitle(tr(f"{name} — {__app_name__}"))
 
     def _error(self, message: str, exc: Exception):
-        QMessageBox.critical(self, "Error", f"{message}:\n{exc}")
+        QMessageBox.critical(self, tr("Error"), f"{tr(message)}:\n{tr(str(exc))}")
+
+    def change_language(self, language, dialog=None):
+        from . import i18n
+        i18n.set_language(language)
+        self.settings.setValue("language", language)
+        i18n.retranslate(self)
+        if dialog is not None:
+            i18n.retranslate(dialog)
+        self.adjust_panel.refresh()
+        self.layers_panel.refresh()
+        self._update_actions()
+
+    def _remember(self, path):
+        path = str(Path(path).resolve())
+        recent = self.settings.value("recent", [], type=list)
+        recent = [path] + [p for p in recent if p != path and Path(p).exists()]
+        self.settings.setValue("recent", recent[:10])
+        self.home.set_recent(recent[:10])
+
+    def _open_image(self, path):
+        from ..imaging.io import load_image
+        from ..core.document import Document
+        pixels = self.file_jobs.run(lambda: load_image(path), tr("Open Image"))
+        self.controller._attach(Document.from_image(pixels, name=Path(path).stem))
+
+    def _open_project(self, path):
+        from ..core.project_io import load_project
+        doc = self.file_jobs.run(lambda: load_project(path), tr("Open Project"))
+        self.controller._attach(doc, Path(path))
+        self._remember(path)
+
+    def _save_project(self, path):
+        from .workers import snapshot
+        from ..core.project_io import save_project
+        c = self.controller
+        source = snapshot(c.document)
+        self.file_jobs.run(lambda: save_project(source, path), tr("Saving…"))
+        c.project_path = Path(path)
+        c._dirty = False
+        c.history_changed.emit()
+        self._update_title()
+        self.autosave.clear()
+        self._clear_recovered()
+        self._remember(path)
+
+    def _export_file(self, path, fmt):
+        from .workers import snapshot
+        from ..core.project_io import export_document
+        source = snapshot(self.controller.document)
+        self.file_jobs.run(lambda: export_document(source, path, fmt), tr("Exporting…"))
+
+    def _open_recent(self, path):
+        if path and self._confirm_replace():
+            try:
+                self._open_project(path)
+            except Exception as exc:
+                self._error("Could not open project", exc)
+
+    def _offer_recovery(self):
+        from ..core.recovery import recovery_files
+        from ..core.project_io import load_project
+        paths = [p for p in recovery_files() if p != self.autosave.path]
+        if not paths:
+            return
+        labels = [p.name for p in paths]
+        choice, ok = QInputDialog.getItem(self, tr("Recovery projects"), tr("Choose a recovery project:"), labels, 0, False)
+        if ok and choice and self._confirm_replace():
+            path = paths[labels.index(choice)]
+            try:
+                doc = self.file_jobs.run(lambda: load_project(path), tr("Recover project"))
+                self.controller._attach(doc)
+                self.controller._dirty = True
+                self._recovery_path = path
+                self._update_title()
+            except Exception as exc:
+                self._error("Could not open project", exc)
+
+    def _clear_recovered(self):
+        if self._recovery_path:
+            self._recovery_path.unlink(missing_ok=True)
+            self._recovery_path = None
 
     def _confirm_replace(self):
         if not self.controller.is_dirty:
             return True
         answer = QMessageBox.warning(
-            self, "Unsaved changes", "Save your changes before continuing?",
+            self, tr("Unsaved changes"), tr("Save your changes before continuing?"),
             QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard |
             QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Save)
         if answer == QMessageBox.StandardButton.Save:
@@ -560,6 +675,8 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self._confirm_replace():
+            self.autosave.shutdown()
+            self._clear_recovered()
             self.render_queue.invalidate()
             self.render_queue.pool.waitForDone()
             self.controller._revision += 1

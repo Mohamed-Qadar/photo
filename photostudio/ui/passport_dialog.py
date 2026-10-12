@@ -1,4 +1,5 @@
 """Physical layout settings; examples are not official biometric requirements."""
+from .i18n import tr, source_text
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QFormLayout, QLabel,
     QComboBox, QDoubleSpinBox, QSpinBox, QDialogButtonBox)
 from ..core.passport import PHOTO_SIZES, SHEET_SIZES, sheet_capacity
@@ -7,29 +8,29 @@ from ..core.passport import PHOTO_SIZES, SHEET_SIZES, sheet_capacity
 class PassportDialog(QDialog):
     def __init__(self, sheet_key, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Passport print layout")
+        self.setWindowTitle(tr("Passport print layout"))
         layout = QVBoxLayout(self)
-        notice = QLabel("Example sizes only. Verify the dimensions, background and composition with the issuing authority.")
+        notice = QLabel(tr("Example sizes only. Verify the dimensions, background and composition with the issuing authority."))
         notice.setWordWrap(True)
         layout.addWidget(notice)
         form = QFormLayout()
         layout.addLayout(form)
         self.presets = QComboBox()
-        self.presets.addItems([p.label for p in PHOTO_SIZES] + ["Custom size"])
-        form.addRow("Photo size", self.presets)
+        self.presets.addItems([tr(item) for item in [p.label for p in PHOTO_SIZES] + ["Custom size"]])
+        form.addRow(tr("Photo size"), self.presets)
         self.width_mm, self.height_mm = QDoubleSpinBox(), QDoubleSpinBox()
         for widget in (self.width_mm, self.height_mm):
             widget.setRange(5, 300)
             widget.setSuffix(" mm")
-        form.addRow("Width", self.width_mm)
-        form.addRow("Height", self.height_mm)
+        form.addRow(tr("Width"), self.width_mm)
+        form.addRow(tr("Height"), self.height_mm)
         self.dpi = QSpinBox()
         self.dpi.setRange(72, 600)
         self.dpi.setValue(300)
-        form.addRow("DPI", self.dpi)
+        form.addRow(tr("DPI"), self.dpi)
         self.copies = QSpinBox()
         self.copies.setRange(1, 100)
-        form.addRow("Copies", self.copies)
+        form.addRow(tr("Copies"), self.copies)
         self.capacity = QLabel()
         layout.addWidget(self.capacity)
         self.sheet = next(s for s in SHEET_SIZES if s.key == sheet_key)

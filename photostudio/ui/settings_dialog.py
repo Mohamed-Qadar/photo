@@ -3,6 +3,7 @@
 The About tab carries the developer attribution required by the project brief.
 """
 from __future__ import annotations
+from .i18n import tr, source_text
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (QComboBox, QDialog, QDialogButtonBox, QFormLayout,
@@ -14,16 +15,17 @@ from .. import (__app_name__, __author__, __author_specialization__,
 
 class SettingsDialog(QDialog):
     theme_changed = Signal(bool)  # True = dark
+    language_changed = Signal(str)
 
     def __init__(self, parent=None, dark: bool = True):
         super().__init__(parent)
-        self.setWindowTitle("Settings")
+        self.setWindowTitle(tr("Settings"))
         self.setMinimumWidth(460)
         layout = QVBoxLayout(self)
 
         tabs = QTabWidget()
-        tabs.addTab(self._general_tab(dark), "General")
-        tabs.addTab(self._about_tab(), "About")
+        tabs.addTab(self._general_tab(dark), tr("General"))
+        tabs.addTab(self._about_tab(), tr("About"))
         layout.addWidget(tabs)
 
         buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
@@ -35,25 +37,32 @@ class SettingsDialog(QDialog):
         w = QWidget()
         form = QFormLayout(w)
         self.theme_combo = QComboBox()
-        self.theme_combo.addItems(["Dark", "Light"])
+        self.theme_combo.addItems([tr(item) for item in ["Dark", "Light"]])
         self.theme_combo.setCurrentIndex(0 if dark else 1)
         self.theme_combo.currentIndexChanged.connect(
             lambda i: self.theme_changed.emit(i == 0))
-        form.addRow("Theme:", self.theme_combo)
+        form.addRow(tr("Theme:"), self.theme_combo)
+        from . import i18n
+        self.language_combo = QComboBox()
+        self.language_combo.addItems([tr("English"), tr("Somali")])
+        self.language_combo.setCurrentIndex(1 if i18n.LANGUAGE == "so" else 0)
+        self.language_combo.currentIndexChanged.connect(
+            lambda i: self.language_changed.emit("so" if i == 1 else "en"))
+        form.addRow(tr("Language"), self.language_combo)
         return w
 
     def _about_tab(self) -> QWidget:
         w = QWidget()
         layout = QVBoxLayout(w)
         text = QLabel(
-            f"<h3>{__app_name__}</h3>"
+            tr(f"<h3>{__app_name__}</h3>"
             f"<p>Version {__version__}<br>Offline-first photo &amp; design studio.</p>"
             "<hr>"
             f"<p><b>Developed by {__author__}</b><br>"
             f"{__author_title__}<br>"
             f"Specializing in {__author_specialization__}.</p>"
             f"<p>Contact: <a href='mailto:{__contact_email__}'>{__contact_email__}</a><br>"
-            f"GitHub: <a href='{__github_url__}'>{__github_url__}</a></p>")
+            f"GitHub: <a href='{__github_url__}'>{__github_url__}</a></p>"))
         text.setTextFormat(Qt.TextFormat.RichText)
         text.setOpenExternalLinks(True)
         text.setWordWrap(True)

@@ -44,8 +44,17 @@ def new_id() -> str:
     return uuid.uuid4().hex[:12]
 
 
+MAX_PIXELS = 40_000_000
+
+
+def validate_size(width, height):
+    if width < 1 or height < 1 or width*height > MAX_PIXELS:
+        raise ValueError("Image/canvas dimensions must be positive and at most 40 megapixels")
+
+
 def blank_pixels(width: int, height: int) -> np.ndarray:
     """Transparent RGBA canvas."""
+    validate_size(width, height)
     return np.zeros((height, width, 4), dtype=np.uint8)
 
 
@@ -95,6 +104,7 @@ class Layer:
             raise ValueError("Layer.pixels must be H x W x 4 (RGBA)")
         if pixels.dtype != np.uint8:
             raise ValueError("Layer.pixels must be uint8")
+        validate_size(pixels.shape[1], pixels.shape[0])
 
     @property
     def is_object(self) -> bool:
@@ -116,6 +126,7 @@ class Layer:
         """Return this layer's RGBA pixels, rendering object layers from spec."""
         from ..imaging import transforms
         from ..imaging.render import render_object
+        validate_size(*self.display_size)
         pixels = self.pixels if self.kind == LayerKind.IMAGE else render_object(self.kind, self.spec)
         if self.scale_x != 1 or self.scale_y != 1:
             pixels = transforms.resize(pixels, max(1, round(self.width * self.scale_x)),
@@ -164,8 +175,9 @@ class Document:
     name: str = "Untitled"
 
     def __post_init__(self) -> None:
-        if self.width <= 0 or self.height <= 0:
-            raise ValueError("Document dimensions must be positive")
+        validate_size(self.width, self.height)
+        if self.dpi <= 0:
+            raise ValueError("DPI must be positive")
         if self.active_layer_id is None and self.layers:
             self.active_layer_id = self.layers[-1].id
 
@@ -184,6 +196,7 @@ class Document:
               background: Optional[tuple[int, int, int, int]] = (255, 255, 255, 255),
               dpi: int = 72) -> "Document":
         """A new design document with an optional solid background layer."""
+        validate_size(width, height)
         layers: list[Layer] = []
         if background is not None:
             px = np.zeros((height, width, 4), dtype=np.uint8)

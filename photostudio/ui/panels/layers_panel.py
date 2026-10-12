@@ -1,5 +1,6 @@
 """Shared layer selection, editable names, thumbnails and drag ordering."""
 from __future__ import annotations
+from ..i18n import tr, source_text
 import copy
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtGui import QIcon
@@ -62,7 +63,7 @@ class LayersPanel(QWidget):
         self.thumbnails = RenderQueue(self, thumbnails)
         self.thumbnails.ready.connect(self._set_thumbnails)
         layout = QVBoxLayout(self)
-        layout.addWidget(QLabel("Layers"))
+        layout.addWidget(QLabel(tr("Layers")))
         self.list = LayerList(self)
         self.list.setIconSize(QSize(64, 48))
         self.list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
@@ -72,7 +73,7 @@ class LayersPanel(QWidget):
         self.list.customContextMenuRequested.connect(self._context_menu)
         layout.addWidget(self.list)
         row = QHBoxLayout()
-        row.addWidget(QLabel("Opacity"))
+        row.addWidget(QLabel(tr("Opacity")))
         self.opacity = QSlider(Qt.Orientation.Horizontal)
         self.opacity.setRange(0, 100)
         self.opacity.valueChanged.connect(lambda v: controller.set_opacity(v/100))
@@ -84,9 +85,9 @@ class LayersPanel(QWidget):
                            ("Lock", self._toggle_lock),
                            ("Dup", controller.duplicate_selection),
                            ("Del", controller.delete_selection)]:
-            button = QPushButton(name)
-            button.setToolTip({"▲": "Bring forward", "▼": "Send backward", "Dup": "Duplicate selected layers",
-                               "Del": "Delete selected layers"}.get(name, "Lock or unlock selected layers"))
+            button = QPushButton(tr(name))
+            button.setToolTip(tr({"▲": "Bring forward", "▼": "Send backward", "Dup": "Duplicate selected layers",
+                               "Del": "Delete selected layers"}.get(name, "Lock or unlock selected layers")))
             button.clicked.connect(slot)
             row.addWidget(button)
         layout.addLayout(row)
@@ -135,8 +136,8 @@ class LayersPanel(QWidget):
                     flags &= ~(Qt.ItemFlag.ItemIsEditable | Qt.ItemFlag.ItemIsDragEnabled)
                 item.setFlags(flags)
                 item.setText(layer.name)
-                item.setToolTip(f"{layer.kind.value} · {'Locked' if layer.locked else 'Unlocked'}" +
-                                (" · Grouped" if layer.group else ""))
+                item.setToolTip(tr(f"{layer.kind.value} · {'Locked' if layer.locked else 'Unlocked'}" +
+                                (" · Grouped" if layer.group else "")))
                 item.setCheckState(Qt.CheckState.Checked if layer.visible else Qt.CheckState.Unchecked)
                 item.setIcon(self._icons.get(layer.id, QIcon()))
             signature = [(l.id, id(l.pixels), repr(l.spec), l.rotation) for l in doc.layers]

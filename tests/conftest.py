@@ -5,11 +5,12 @@ import pytest
 
 
 @pytest.fixture(autouse=True)
-def avoid_modal_teardown(monkeypatch):
+def avoid_modal_teardown(monkeypatch, tmp_path):
     # Tests of prompts override this explicitly. Other tests must never block
     # pytest-qt's window teardown on an interactive save/discard dialog.
     from PySide6.QtWidgets import QMessageBox
     monkeypatch.setattr(QMessageBox, "warning", lambda *args: QMessageBox.StandardButton.Discard)
+    monkeypatch.setenv("PHOTOSTUDIO_DATA_DIR", str(tmp_path / "app-data"))
 
 
 @pytest.fixture

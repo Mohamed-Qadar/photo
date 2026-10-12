@@ -128,6 +128,7 @@ class _PixelSwapCommand(Command):
         self.old_size = (document.width, document.height)
         self.new_size = (new_pixels.shape[1], new_pixels.shape[0])
         self.old_offset = layer.offset
+        self.old_transform = (layer.scale_x, layer.scale_y, layer.rotation)
         self.label = label
 
     def do(self) -> None:
@@ -135,23 +136,26 @@ class _PixelSwapCommand(Command):
         if self.resize_canvas:
             self.document.width, self.document.height = self.new_size
             self.layer.offset = (0, 0)
+            self.layer.scale_x = self.layer.scale_y = 1.0
+            self.layer.rotation = 0.0
 
     def undo(self) -> None:
         self.layer.pixels = self.old_pixels
         if self.resize_canvas:
             self.document.width, self.document.height = self.old_size
             self.layer.offset = self.old_offset
+            self.layer.scale_x, self.layer.scale_y, self.layer.rotation = self.old_transform
 
 
 class CropCommand(_PixelSwapCommand):
     def __init__(self, document: Document, layer: Layer, x: int, y: int, w: int, h: int):
-        cropped = transforms.crop(layer.pixels, x, y, w, h)
+        cropped = transforms.crop(layer.render(), x, y, w, h)
         super().__init__(document, layer, cropped, resize_canvas=True, label="Crop")
 
 
 class Rotate90Command(_PixelSwapCommand):
     def __init__(self, document: Document, layer: Layer, turns: int = 1):
-        rotated = transforms.rotate_90(layer.pixels, turns)
+        rotated = transforms.rotate_90(layer.render(), turns)
         super().__init__(document, layer, rotated, resize_canvas=True,
                          label="Rotate 90°")
 
@@ -166,7 +170,7 @@ class FlipCommand(_PixelSwapCommand):
 
 class ResizeCommand(_PixelSwapCommand):
     def __init__(self, document: Document, layer: Layer, width: int, height: int):
-        resized = transforms.resize(layer.pixels, width, height)
+        resized = transforms.resize(layer.render(), width, height)
         super().__init__(document, layer, resized, resize_canvas=True, label="Resize")
 
 
@@ -312,7 +316,7 @@ class AlignCommand(Command):
         from .arrange import align_offset
         self.layer = layer
         self.old_offset = layer.offset
-        self.new_offset = align_offset(layer.width, layer.height,
+        self.new_offset = align_offset(*layer.display_size,
                                        document.width, document.height,
                                        where, layer.offset)
         self.label = f"Align {where}"

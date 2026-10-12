@@ -13,6 +13,8 @@ from __future__ import annotations
 import io
 import json
 import zipfile
+import os
+import tempfile
 from pathlib import Path
 
 import numpy as np
@@ -35,10 +37,24 @@ def _pixels_to_png_bytes(pixels: np.ndarray) -> bytes:
 
 def _png_bytes_to_pixels(data: bytes) -> np.ndarray:
     with Image.open(io.BytesIO(data)) as img:
+        from .document import validate_size
+        validate_size(*img.size)
         return np.asarray(img.convert("RGBA"), dtype=np.uint8).copy()
 
 
 def save_project(document: Document, path: str | Path) -> None:
+    """Atomic replacement: a failed/interrupted write preserves the old project."""
+    path = Path(path)
+    fd, temp = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=path.parent)
+    os.close(fd)
+    try:
+        _write_project(document, temp)
+        os.replace(temp, path)
+    finally:
+        Path(temp).unlink(missing_ok=True)
+
+
+def _write_project(document: Document, path: str | Path) -> None:
     path = Path(path)
     manifest = {
         "format_version": FORMAT_VERSION,
@@ -76,7 +92,8 @@ def save_project(document: Document, path: str | Path) -> None:
                 zf.writestr(data_path, _pixels_to_png_bytes(layer.pixels))
             manifest["layers"].append(entry)
         try:
-            thumb = composite(document)
+            from .pipeline import composite_preview
+            thumb = composite_preview(document, max_side=256)
             zf.writestr("thumbnail.png", _pixels_to_png_bytes(_thumb(thumb)))
         except Exception:
             pass  # thumbnail is best-effort, never blocks a save

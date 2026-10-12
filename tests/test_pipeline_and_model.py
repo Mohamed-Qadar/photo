@@ -38,6 +38,12 @@ def test_layer_validation_rejects_bad_shape():
         Layer(pixels=np.zeros((4, 4, 3), dtype=np.uint8))
 
 
+def test_multiply_over_transparency_preserves_source_colour():
+    image = np.full((4, 4, 4), [180, 120, 60, 128], np.uint8)
+    doc = Document(4, 4, layers=[Layer(pixels=image, blend=BlendMode.MULTIPLY)])
+    assert np.array_equal(composite(doc), image)
+
+
 def test_core_and_imaging_have_no_qt_imports():
     """Architecture guard: core/imaging must not import PySide6."""
     for pkg in (core_pkg, imaging_pkg):

@@ -3,6 +3,7 @@
 Renders the flattened pipeline output and supports an interactive crop overlay.
 """
 from __future__ import annotations
+from .i18n import tr, source_text
 
 from typing import Optional
 import math
@@ -56,14 +57,17 @@ class CanvasView(QGraphicsView):
         self._guide_items = []
 
     # ---- image display ------------------------------------------------
-    def set_image(self, pixels: np.ndarray, reset_view: bool = False) -> None:
+    def set_image(self, pixels: np.ndarray, reset_view: bool = False, document_size=None) -> None:
         pixmap = ndarray_to_qpixmap(pixels)
         if self._pixmap_item is None:
             self._pixmap_item = self._scene.addPixmap(pixmap)
             reset_view = True
         else:
             self._pixmap_item.setPixmap(pixmap)
-        self._scene.setSceneRect(QRectF(pixmap.rect()))
+        from PySide6.QtGui import QTransform
+        w, h = document_size or (pixmap.width(), pixmap.height())
+        self._pixmap_item.setTransform(QTransform.fromScale(w/pixmap.width(), h/pixmap.height()))
+        self._scene.setSceneRect(QRectF(0, 0, w, h))
         if reset_view:
             self.fit_to_window()
 
@@ -124,7 +128,7 @@ class CanvasView(QGraphicsView):
         self._guide_items = []
         if not show or self._pixmap_item is None:
             return
-        rect = self._pixmap_item.boundingRect()
+        rect = self._pixmap_item.sceneBoundingRect()
         w, h = rect.width(), rect.height()
         pen = QPen(QColor("#5b8cff"), 0)
         pen.setCosmetic(True)
@@ -180,7 +184,7 @@ class CanvasView(QGraphicsView):
     def _tool_release(self, event):
         if self._crop_mode and self._crop_origin is not None and self._crop_item:
             rect = self._crop_item.rect().normalized()
-            bounds = self._pixmap_item.boundingRect()
+            bounds = self._pixmap_item.sceneBoundingRect()
             rect = rect.intersected(bounds)
             self.cancel_crop()
             if rect.width() >= 1 and rect.height() >= 1:
@@ -305,6 +309,8 @@ class CanvasView(QGraphicsView):
         layers = self.controller.selected_layers()
         if layers:
             from ..core.commands import transform_state
+            self.controller.interaction_active = True
+            self.controller._revision += 1
             self._gesture = {"mode": handle or "move", "origin": point,
                              "before": {l.id: transform_state(l) for l in layers},
                              "layers": layers, "rect": self.selection_rect()}
@@ -417,6 +423,7 @@ class CanvasView(QGraphicsView):
             for layer in g["layers"]:
                 set_transform(layer, g["before"][layer.id])
             self._gesture = None
+            self.controller.interaction_active = False
             self.controller.transform_selection(g["before"], after)
         self._snap_guides = []
         self.viewport().update()
@@ -427,6 +434,7 @@ class CanvasView(QGraphicsView):
             for layer in self._gesture["layers"]:
                 set_transform(layer, self._gesture["before"][layer.id])
             self._gesture = None
+            self.controller.interaction_active = False
             self.controller.document_changed.emit()
         self._marquee = None
         self._snap_guides = []
@@ -465,7 +473,7 @@ class CanvasView(QGraphicsView):
         if layer and layer.kind.value == "text" and not layer.locked:
             from PySide6.QtWidgets import QInputDialog
             self.controller.select([layer.id])
-            text, ok = QInputDialog.getMultiLineText(self, "Edit text", "Text:", layer.spec.get("text", ""))
+            text, ok = QInputDialog.getMultiLineText(self, tr("Edit text"), tr("Text:"), layer.spec.get("text", ""))
             if ok:
                 self.controller.set_text(text)
         else:

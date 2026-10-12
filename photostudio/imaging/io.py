@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 
 READ_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"}
 
@@ -17,6 +17,9 @@ def load_image(path: str | Path) -> np.ndarray:
     """Load any supported image as H x W x 4 uint8 RGBA."""
     path = Path(path)
     with Image.open(path) as img:
+        from ..core.document import validate_size
+        validate_size(*img.size)
+        img = ImageOps.exif_transpose(img)
         img = img.convert("RGBA")
         return np.asarray(img, dtype=np.uint8).copy()
 

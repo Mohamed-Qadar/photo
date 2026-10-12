@@ -37,6 +37,7 @@ class EditorController(QObject):
         self.processing_pool.setMaxThreadCount(1)
         self._processing = None
         self.selected_ids = []
+        self.interaction_active = False
 
     # ---- lifecycle ----------------------------------------------------
     def _attach(self, document: Document, path: Optional[Path] = None):
@@ -55,6 +56,8 @@ class EditorController(QObject):
     def new_document(self, width: int, height: int, name: str = "Untitled",
                      background=(255, 255, 255, 255)):
         self._attach(Document.blank(width, height, name=name, background=background))
+        self._dirty = True
+        self.history_changed.emit()
 
     def open_image(self, path: str | Path):
         pixels = img_io.load_image(path)
@@ -68,6 +71,8 @@ class EditorController(QObject):
     def open_template(self, key: str):
         from ..core import templates
         self._attach(templates.build(templates.get(key)))
+        self._dirty = True
+        self.history_changed.emit()
 
     def import_svg(self, path: str | Path, max_size: int = 1024):
         """Rasterize an SVG via Qt and add it as an image layer (offline)."""
@@ -177,25 +182,31 @@ class EditorController(QObject):
         layer = self._active()
         if layer is None or layer.pixels is None:
             return
-        self._push(commands.CropCommand(self.document, layer, x - layer.offset[0], y - layer.offset[1], w, h))
+        from ..imaging.transforms import crop
+        self._filter(layer, crop, "Crop", resize_canvas=True, rendered=True,
+                     x=x-layer.offset[0], y=y-layer.offset[1], width=w, height=h)
 
     def rotate_90(self, turns: int = 1):
         layer = self._active()
         if layer is None or layer.pixels is None:
             return
-        self._push(commands.Rotate90Command(self.document, layer, turns))
+        from ..imaging.transforms import rotate_90
+        self._filter(layer, rotate_90, "Rotate 90°", resize_canvas=True, rendered=True, turns=turns)
 
     def flip(self, horizontal: bool):
         layer = self._active()
         if layer is None or layer.pixels is None:
             return
-        self._push(commands.FlipCommand(self.document, layer, horizontal))
+        from ..imaging.transforms import flip_horizontal, flip_vertical
+        self._filter(layer, flip_horizontal if horizontal else flip_vertical,
+                     "Flip Horizontal" if horizontal else "Flip Vertical")
 
     def resize(self, width: int, height: int):
         layer = self._active()
         if layer is None or layer.pixels is None:
             return
-        self._push(commands.ResizeCommand(self.document, layer, width, height))
+        from ..imaging.transforms import resize
+        self._filter(layer, resize, "Resize", resize_canvas=True, rendered=True, width=width, height=height)
 
     def add_text(self, text: str = "Double-click to edit", font_size: int = 48):
         if self.document is None:
@@ -245,17 +256,19 @@ class EditorController(QObject):
             return
         self._filter(layer, heal, "Spot Removal", cx=lx, cy=ly, radius=radius)
 
-    def _filter(self, layer, func, label, **kwargs):
-        if layer.width * layer.height < 1_000_000:
-            self._push(commands.FilterCommand(self.document, layer, func, label, **kwargs))
+    def _filter(self, layer, func, label, resize_canvas=False, rendered=False, **kwargs):
+        if layer.display_size[0] * layer.display_size[1] < 1_000_000:
+            pixels = layer.render() if rendered else layer.pixels
+            self._push(commands._PixelSwapCommand(self.document, layer, func(pixels, **kwargs), resize_canvas, label))
             return
         if self._processing is not None:
             self.processing_error.emit("An image operation is still running. Please wait.")
             return
-        from .workers import Job
+        from .workers import Job, snapshot
         pixels = layer.pixels
-        self._processing = (self._revision, self.document, layer, label)
-        job = Job(self._revision, lambda: func(pixels, **kwargs))
+        source = snapshot(self.document).layer_by_id(layer.id)
+        self._processing = (self._revision, self.document, layer, label, resize_canvas)
+        job = Job(self._revision, lambda: func(source.render() if rendered else pixels, **kwargs))
         job.signals.done.connect(self._finish_processing)
         self.processing_pool.start(job)
 
@@ -265,7 +278,7 @@ class EditorController(QObject):
         self._processing = None
         if pending is None:
             return
-        _, doc, layer, label = pending
+        _, doc, layer, label, resize_canvas = pending
         if error:
             self.processing_error.emit(str(error))
         elif revision == self._revision and doc is self.document and (layer is None or not layer.locked):
@@ -274,7 +287,7 @@ class EditorController(QObject):
                 self._dirty = True
                 self.history_changed.emit()
             else:
-                self._push(commands._PixelSwapCommand(doc, layer, result, False, label))
+                self._push(commands._PixelSwapCommand(doc, layer, result, resize_canvas, label))
         else:
             self.processing_error.emit("Image operation discarded because the document changed.")
 
@@ -424,7 +437,7 @@ class EditorController(QObject):
             self._dirty = True
             self.history_changed.emit()
         elif self._processing is None:
-            self._processing = (self._revision, self.document, None, "Print Sheet")
+            self._processing = (self._revision, self.document, None, "Print Sheet", False)
             job = Job(self._revision, build)
             job.signals.done.connect(self._finish_processing)
             self.processing_pool.start(job)
@@ -440,6 +453,7 @@ class EditorController(QObject):
         if self.history and self.history.can_undo():
             self._revision += 1
             self.history.undo()
+            self._repair_selection()
             self._dirty = True
             self.document_changed.emit()
 
@@ -447,6 +461,7 @@ class EditorController(QObject):
         if self.history and self.history.can_redo():
             self._revision += 1
             self.history.redo()
+            self._repair_selection()
             self._dirty = True
             self.document_changed.emit()
 
@@ -461,6 +476,13 @@ class EditorController(QObject):
         self.selected_ids = list(dict.fromkeys(i for i in ids if self.document.layer_by_id(i)))
         self.document.active_layer_id = self.selected_ids[-1] if self.selected_ids else None
         self.selection_changed.emit()
+
+    def _repair_selection(self):
+        ids = [i for i in self.selected_ids if self.document.layer_by_id(i)]
+        active = self.document.active_layer_id
+        if active and active not in ids:
+            ids = [active]
+        self.select(ids)
 
     def selected_layers(self, editable=True, expand_groups=True):
         if self.document is None:
@@ -477,6 +499,17 @@ class EditorController(QObject):
 
     def transform_selection(self, before, after, label="Transform Selection"):
         layers = [l for l in self.selected_layers() if l.id in before and l.id in after]
+        from copy import copy
+        from ..core.document import validate_size
+        try:
+            for layer in layers:
+                item = copy(layer)
+                commands.set_transform(item, after[layer.id])
+                validate_size(*item.display_size)
+        except (ValueError, OverflowError) as exc:
+            self.processing_error.emit(str(exc))
+            self.document_changed.emit()
+            return
         if layers and any(before[l.id] != after[l.id] for l in layers):
             self._push(commands.TransformSelectionCommand(layers, before, after, label))
 

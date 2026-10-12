@@ -1,4 +1,5 @@
 """Offline searchable template gallery with bounded previews."""
+from .i18n import tr, source_text
 from PySide6.QtCore import Qt, QSize, QThreadPool, Slot
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import (QDialog, QVBoxLayout, QLineEdit, QListWidget,
@@ -16,11 +17,11 @@ def gallery_previews():
 class TemplatePicker(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setWindowTitle("Offline templates")
+        self.setWindowTitle(tr("Offline templates"))
         self.resize(720, 560)
         layout = QVBoxLayout(self)
         search = QLineEdit()
-        search.setPlaceholderText("Search name or category…")
+        search.setPlaceholderText(tr("Search name or category…"))
         layout.addWidget(search)
         self.list = QListWidget()
         self.list.setViewMode(QListWidget.ViewMode.IconMode)
