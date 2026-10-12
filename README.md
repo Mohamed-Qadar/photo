@@ -7,11 +7,20 @@
 
 ## Download for Windows
 
-[**Download PhotoStudio Setup (.exe)**](https://github.com/Mohamed-Qadar/photo/releases/download/v1.2.0/PhotoStudio-Setup.exe)
+[**Download Windows Setup.exe**](https://github.com/Mohamed-Qadar/photo/releases/download/v1.2.0/PhotoStudio-Setup.exe) ·
+[Release notes](https://github.com/Mohamed-Qadar/photo/releases/tag/v1.2.0)
 
-Download the installer, run it, and follow the setup steps. A GitHub account is not
-required. This is a pre-release build; the Windows build, automated tests and
-packaged application workflows passed before publication.
+Click **Download Windows Setup.exe** to download the installer directly. Run
+**PhotoStudio-Setup.exe**, click **Install**, and open PhotoStudio from the Start
+menu. No ZIP extraction, Python installation or GitHub account is required.
+Windows 10/11 x64; the installer includes the required runtime.
+
+**Soomaali:** Guji **Download Windows Setup.exe**, fur **PhotoStudio-Setup.exe**,
+guji **Install**, kadib PhotoStudio ka fur Start menu. Looma baahna inaad ZIP kala
+furfurto. Barnaamijku wuxuu shaqeeyaa internet la'aan.
+
+This is a pre-release build; the Windows build, automated tests and packaged
+application workflows passed before publication.
 
 [Release details](https://github.com/Mohamed-Qadar/photo/releases/tag/v1.2.0) ·
 [SHA-256 checksum](https://github.com/Mohamed-Qadar/photo/releases/download/v1.2.0/PhotoStudio-Setup.exe.sha256)
