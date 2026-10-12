@@ -99,6 +99,7 @@ class AdjustmentsPanel(QWidget):
 
         controller.document_opened.connect(self.refresh)
         controller.document_changed.connect(self.refresh)
+        controller.selection_changed.connect(self.refresh)
 
     def _text_color(self):
         c = QColorDialog.getColor(parent=self)

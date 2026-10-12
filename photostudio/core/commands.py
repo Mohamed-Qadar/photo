@@ -24,6 +24,41 @@ class Command:
         return False
 
 
+class CompositeCommand(Command):
+    """One undo step for a multi-object action; gesture boundaries do not merge."""
+    def __init__(self, commands, label="Edit Selection"):
+        self.commands, self.label = list(commands), label
+
+    def do(self):
+        for command in self.commands:
+            command.do()
+
+    def undo(self):
+        for command in reversed(self.commands):
+            command.undo()
+
+
+def transform_state(layer):
+    return (layer.offset, layer.scale_x, layer.scale_y, layer.rotation)
+
+
+def set_transform(layer, state):
+    layer.offset, layer.scale_x, layer.scale_y, layer.rotation = state
+
+
+class TransformSelectionCommand(Command):
+    def __init__(self, layers, before, after, label="Transform Selection"):
+        self.layers, self.before, self.after, self.label = layers, before, after, label
+
+    def do(self):
+        for layer in self.layers:
+            set_transform(layer, self.after[layer.id])
+
+    def undo(self):
+        for layer in self.layers:
+            set_transform(layer, self.before[layer.id])
+
+
 class AdjustmentCommand(Command):
     """Set one adjustment parameter on a layer; coalesces repeated drags."""
 

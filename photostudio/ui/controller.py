@@ -20,6 +20,7 @@ from ..imaging import io as img_io
 
 
 class EditorController(QObject):
+    selection_changed = Signal()
     processing_error = Signal(str)
     document_changed = Signal()       # structure/pixels changed -> re-render
     history_changed = Signal()        # undo/redo availability changed
@@ -35,11 +36,13 @@ class EditorController(QObject):
         self.processing_pool = QThreadPool(self)
         self.processing_pool.setMaxThreadCount(1)
         self._processing = None
+        self.selected_ids = []
 
     # ---- lifecycle ----------------------------------------------------
     def _attach(self, document: Document, path: Optional[Path] = None):
         self._revision += 1
         self.document = document
+        self.selected_ids = [document.active_layer_id] if document.active_layer_id else []
         self.history = History(on_change=self._on_history_change)
         self.project_path = path
         self._dirty = False
@@ -118,6 +121,10 @@ class EditorController(QObject):
             return
         self._revision += 1
         self.history.push(command)
+        self.selected_ids = [i for i in self.selected_ids if self.document.layer_by_id(i)]
+        if isinstance(command, commands.AddLayerCommand):
+            self.selected_ids = [command.layer.id]
+        self.selection_changed.emit()
         self._dirty = True
         self.document_changed.emit()
 
@@ -336,6 +343,51 @@ class EditorController(QObject):
     def _active(self):
         layer = self.document.active_layer if self.document else None
         return layer if layer is not None and not layer.locked else None
+
+    def select(self, ids):
+        if self.document is None:
+            return
+        self.selected_ids = list(dict.fromkeys(i for i in ids if self.document.layer_by_id(i)))
+        self.document.active_layer_id = self.selected_ids[-1] if self.selected_ids else None
+        self.selection_changed.emit()
+
+    def selected_layers(self, editable=True, expand_groups=True):
+        if self.document is None:
+            return []
+        ids = set(self.selected_ids)
+        groups = {l.group for l in self.document.layers if l.id in ids and l.group}
+        layers = [l for l in self.document.layers if l.id in ids or
+                  (expand_groups and l.group in groups and l.group is not None)]
+        # A locked group cannot be partly moved.
+        if editable:
+            locked_groups = {l.group for l in layers if l.locked and l.group}
+            layers = [l for l in layers if not l.locked and l.group not in locked_groups]
+        return layers
+
+    def transform_selection(self, before, after, label="Transform Selection"):
+        layers = [l for l in self.selected_layers() if l.id in before and l.id in after]
+        if layers and any(before[l.id] != after[l.id] for l in layers):
+            self._push(commands.TransformSelectionCommand(layers, before, after, label))
+
+    def nudge_selection(self, dx, dy):
+        layers = self.selected_layers()
+        before = {l.id: commands.transform_state(l) for l in layers}
+        after = {i: ((s[0][0] + dx, s[0][1] + dy), *s[1:]) for i, s in before.items()}
+        self.transform_selection(before, after, "Move Selection")
+
+    def delete_selection(self):
+        layers = self.selected_layers(expand_groups=False)
+        if layers:
+            self._push(commands.CompositeCommand(
+                [commands.RemoveLayerCommand(self.document, l) for l in layers], "Delete Selection"))
+            self.select([])
+
+    def duplicate_selection(self):
+        layers = self.selected_layers(expand_groups=False)
+        if layers:
+            copies = [commands.DuplicateLayerCommand(self.document, l) for l in layers]
+            self._push(commands.CompositeCommand(copies, "Duplicate Selection"))
+            self.select([c.copy.id for c in copies])
 
     def _on_history_change(self):
         self._dirty = True

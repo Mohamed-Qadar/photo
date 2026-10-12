@@ -22,6 +22,20 @@ create or mutate widgets. Export retains full resolution.
 Text content, font size, alignment and colour now have visible properties controls.
 A canvas snapping action exposes the existing geometry helper.
 
+## Phase 2 — interactive canvas
+
+The canvas now supports click and Shift selection, marquee selection, grouped or
+multi-object movement, eight resize handles, rotation handles, arrow movement,
+Space-drag panning, visible boundaries and cursor feedback. Shift constrains aspect
+ratio or rotation to 15-degree steps. Canvas/object snapping uses a screen-space
+tolerance and displays guides. Escape restores a cancelled gesture. Each completed
+gesture is one undo step. Locked objects cannot be manipulated from the canvas.
+
+Scale and clockwise rotation are persisted as optional layer fields. Old manifests
+default to identity transforms. Raster source pixels and object specs stay editable.
+Rotation and export use the same rendering path. Selection is shared by canvas,
+controller and layer list; duplicate/delete support multiple selected objects.
+
 Runtime, installer and package metadata use version 1.2.0. The Phase 1 report is
 historical. The source tree has progressed beyond that initial delivery. Autosave
 and the interactive object canvas are subsequent phases, not baseline capabilities.

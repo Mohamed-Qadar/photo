@@ -6,6 +6,8 @@ Pixels are always H x W x 4 uint8 RGBA, non-premultiplied, sRGB.
 from __future__ import annotations
 
 import uuid
+import math
+import copy
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Optional
@@ -68,6 +70,9 @@ class Layer:
     adjustments: dict[str, float] = field(default_factory=lambda: dict(ADJUSTMENT_DEFAULTS))
     spec: dict = field(default_factory=dict)  # TEXT/SHAPE object definition
     group: Optional[str] = None               # group id (layers sharing it move together)
+    scale_x: float = 1.0
+    scale_y: float = 1.0
+    rotation: float = 0.0                     # clockwise degrees, editable
 
     def __post_init__(self) -> None:
         if self.kind == LayerKind.IMAGE:
@@ -78,6 +83,9 @@ class Layer:
         merged.update(self.adjustments or {})
         self.adjustments = merged
         self.opacity = float(np.clip(self.opacity, 0.0, 1.0))
+        if not (math.isfinite(self.scale_x) and math.isfinite(self.scale_y)
+                and self.scale_x > 0 and self.scale_y > 0 and math.isfinite(self.rotation)):
+            raise ValueError("Layer transforms must be finite with positive scales")
 
     @staticmethod
     def _validate_pixels(pixels) -> None:
@@ -106,11 +114,23 @@ class Layer:
 
     def render(self) -> np.ndarray:
         """Return this layer's RGBA pixels, rendering object layers from spec."""
-        if self.kind == LayerKind.IMAGE:
-            return self.pixels
-        # Imported lazily to keep imaging optional for pure-model use.
+        from ..imaging import transforms
         from ..imaging.render import render_object
-        return render_object(self.kind, self.spec)
+        pixels = self.pixels if self.kind == LayerKind.IMAGE else render_object(self.kind, self.spec)
+        if self.scale_x != 1 or self.scale_y != 1:
+            pixels = transforms.resize(pixels, max(1, round(self.width * self.scale_x)),
+                                       max(1, round(self.height * self.scale_y)))
+        if self.rotation % 360:
+            pixels = transforms.rotate_arbitrary(pixels, -self.rotation)
+        return pixels
+
+    @property
+    def display_size(self):
+        w, h = max(1, round(self.width * self.scale_x)), max(1, round(self.height * self.scale_y))
+        angle = math.radians(self.rotation % 360)
+        c, s = abs(math.cos(angle)), abs(math.sin(angle))
+        return (max(1, int(math.ceil(w * c + h * s - 1e-9))),
+                max(1, int(math.ceil(h * c + w * s - 1e-9))))
 
     def has_edits(self) -> bool:
         return any(abs(self.adjustments.get(k, d) - d) > 1e-9
@@ -128,8 +148,9 @@ class Layer:
             opacity=self.opacity,
             blend=self.blend,
             adjustments=dict(self.adjustments),
-            spec=dict(self.spec),
+            spec=copy.deepcopy(self.spec),
             group=self.group,
+            scale_x=self.scale_x, scale_y=self.scale_y, rotation=self.rotation,
         )
 
 

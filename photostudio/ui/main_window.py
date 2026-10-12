@@ -38,6 +38,7 @@ class MainWindow(QMainWindow):
 
         self.home = HomeScreen()
         self.canvas = CanvasView()
+        self.canvas.bind_controller(self.controller)
         self._stack.addWidget(self.home)
         self._stack.addWidget(self.canvas)
 
@@ -119,7 +120,7 @@ class MainWindow(QMainWindow):
                              ("Line", "line")]:
             m_insert.addAction(self._act(label, lambda _=False, s=shape: self.controller.add_shape(s)))
         m_insert.addSeparator()
-        m_insert.addAction(self._act("Delete Layer", self.controller.delete_active_layer, "Del"))
+        m_insert.addAction(self._act("Delete Layer", self.controller.delete_selection, "Del"))
 
         m_arrange = mb.addMenu("&Arrange")
         for label, where in [("Align Left", "left"), ("Align Center", "hcenter"),
@@ -129,7 +130,7 @@ class MainWindow(QMainWindow):
         m_arrange.addSeparator()
         m_arrange.addAction(self._act("Bring Forward", lambda: self.controller.reorder_active(1), "Ctrl+]"))
         m_arrange.addAction(self._act("Send Backward", lambda: self.controller.reorder_active(-1), "Ctrl+["))
-        m_arrange.addAction(self._act("Duplicate Layer", self.controller.duplicate_active, "Ctrl+J"))
+        m_arrange.addAction(self._act("Duplicate Layer", self.controller.duplicate_selection, "Ctrl+J"))
         m_arrange.addSeparator()
         m_arrange.addAction(self._act("Group Selected", self.on_group, "Ctrl+G"))
         m_arrange.addAction(self._act("Ungroup", self.controller.ungroup_active, "Ctrl+Shift+G"))

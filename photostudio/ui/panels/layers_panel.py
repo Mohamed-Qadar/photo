@@ -23,7 +23,7 @@ class LayersPanel(QWidget):
         self.list = QListWidget()
         self.list.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
         self.list.itemChanged.connect(self._on_item_changed)
-        self.list.currentRowChanged.connect(self._on_row_selected)
+        self.list.itemSelectionChanged.connect(self._on_selection)
         layout.addWidget(self.list)
 
         # Opacity
@@ -51,6 +51,7 @@ class LayersPanel(QWidget):
 
         controller.document_changed.connect(self.refresh)
         controller.document_opened.connect(self.refresh)
+        controller.selection_changed.connect(self.refresh)
         self._syncing = False
 
     def selected_layer_ids(self):
@@ -76,7 +77,7 @@ class LayersPanel(QWidget):
                                    else Qt.CheckState.Unchecked)
                 item.setData(Qt.ItemDataRole.UserRole, layer.id)
                 self.list.addItem(item)
-                if layer.id == doc.active_layer_id:
+                if layer.id in self.controller.selected_ids:
                     item.setSelected(True)
             active = doc.active_layer
             if active is not None:
@@ -96,16 +97,8 @@ class LayersPanel(QWidget):
             self.controller.history.push(commands.SetLayerVisibilityCommand(layer, visible))
             self.controller.document_changed.emit()
 
-    def _on_row_selected(self, row: int):
-        if self._syncing or row < 0 or self.controller.document is None:
+    def _on_selection(self):
+        if self._syncing or self.controller.document is None:
             return
-        item = self.list.item(row)
-        if item:
-            self.controller.document.active_layer_id = item.data(Qt.ItemDataRole.UserRole)
-            self.controller.document_changed.emit()
-            active = self.controller.document.active_layer
-            if active is not None:
-                self.opacity.blockSignals(True)
-                self.opacity.setValue(int(active.opacity * 100))
-                self.opacity.blockSignals(False)
-
+        ids = self.selected_layer_ids()
+        self.controller.select(ids)

@@ -63,6 +63,9 @@ def save_project(document: Document, path: str | Path) -> None:
                 "blend": layer.blend.value,
                 "adjustments": layer.adjustments,
                 "group": layer.group,
+                "scale_x": layer.scale_x,
+                "scale_y": layer.scale_y,
+                "rotation": layer.rotation,
             }
             if layer.is_object:
                 # Editable object: store its spec, not flattened pixels.
@@ -113,6 +116,9 @@ def load_project(path: str | Path) -> Document:
                 adjustments=dict(entry.get("adjustments", {})),
                 spec=dict(entry.get("spec", {})),
                 group=entry.get("group"),
+                scale_x=float(entry.get("scale_x", 1)),
+                scale_y=float(entry.get("scale_y", 1)),
+                rotation=float(entry.get("rotation", 0)),
             ))
     return Document(
         width=int(manifest["width"]),

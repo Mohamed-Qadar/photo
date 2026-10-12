@@ -6,6 +6,7 @@ rotation uses OpenCV with an expanded canvas and transparent fill.
 from __future__ import annotations
 
 import cv2
+import math
 import numpy as np
 
 
@@ -62,8 +63,8 @@ def rotate_arbitrary(pixels: np.ndarray, degrees: float) -> np.ndarray:
     center = (w / 2.0, h / 2.0)
     mat = cv2.getRotationMatrix2D(center, degrees, 1.0)
     cos, sin = abs(mat[0, 0]), abs(mat[0, 1])
-    new_w = int(h * sin + w * cos)
-    new_h = int(h * cos + w * sin)
+    new_w = max(1, math.ceil(h * sin + w * cos - 1e-9))
+    new_h = max(1, math.ceil(h * cos + w * sin - 1e-9))
     mat[0, 2] += (new_w / 2.0) - center[0]
     mat[1, 2] += (new_h / 2.0) - center[1]
     return cv2.warpAffine(
