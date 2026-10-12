@@ -108,6 +108,9 @@ def main() -> int:
     win._show_home()
     assert all(not dock.isVisible() for dock in win._docks)
 
+    c._dirty = False
+    win.close()
+    app.processEvents()
     print("SMOKE OK: window built, design + photo flows ran, export succeeded.")
     app.processEvents()
     return 0

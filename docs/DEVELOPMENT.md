@@ -36,6 +36,19 @@ default to identity transforms. Raster source pixels and object specs stay edita
 Rotation and export use the same rendering path. Selection is shared by canvas,
 controller and layer list; duplicate/delete support multiple selected objects.
 
+## Phase 3 — layers and properties
+
+Layers now show bounded background-generated thumbnails, editable names, visibility,
+lock state in tooltips, opacity, shared multi-selection and context menus. Internal
+drag ordering respects locked dragged objects. Reorder and rename are undoable.
+Selection refresh preserves selected objects rather than rebuilding on every click.
+
+Properties expose position, size, rotation, font family, bold, alignment, colour,
+outline and shadow, plus shape type/fill/stroke/gradient and alignment actions. The
+properties dock scrolls on smaller screens. System fonts resolve offline; the
+renderer stays independent of Qt. Unicode Somali text and styled object specs
+remain editable after project save and match full-resolution PNG exports.
+
 Runtime, installer and package metadata use version 1.2.0. The Phase 1 report is
 historical. The source tree has progressed beyond that initial delivery. Autosave
 and the interactive object canvas are subsequent phases, not baseline capabilities.

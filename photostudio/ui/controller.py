@@ -263,13 +263,54 @@ class EditorController(QObject):
         if layer and layer.kind.value == "text":
             self._push(commands.SetTextPropertyCommand(layer, key, value))
 
+    def set_object_property(self, key, value):
+        layer = self._active()
+        if layer and layer.is_object:
+            self._push(commands.SetTextPropertyCommand(layer, key, value))
+
+    def rename_layer(self, layer_id, name):
+        layer = self.document.layer_by_id(layer_id) if self.document else None
+        if layer and not layer.locked and name.strip() and name != layer.name:
+            self._push(commands.SetLayerPropertyCommand(layer, "name", name.strip()))
+
+    def set_locked(self, layer_id, locked):
+        layer = self.document.layer_by_id(layer_id) if self.document else None
+        if layer and layer.locked != locked:
+            self._push(commands.SetLayerLockCommand(layer, locked))
+
+    def set_visible(self, layer_id, visible):
+        layer = self.document.layer_by_id(layer_id) if self.document else None
+        if layer and layer.visible != visible:
+            self._push(commands.SetLayerVisibilityCommand(layer, visible))
+
+    def reorder_layers(self, ids, dragged_ids):
+        if self.document and not any(self.document.layer_by_id(i).locked for i in dragged_ids):
+            self._push(commands.LayerOrderCommand(self.document, ids))
+        else:
+            self.document_changed.emit()
+
+    def set_transform_property(self, key, value):
+        layer = self._active()
+        if layer is None:
+            return
+        before = {layer.id: commands.transform_state(layer)}
+        x, y = layer.offset
+        sx, sy, angle = layer.scale_x, layer.scale_y, layer.rotation
+        if key == "x": x = int(value)
+        elif key == "y": y = int(value)
+        elif key == "width": sx = max(1, value) / max(1, layer.width)
+        elif key == "height": sy = max(1, value) / max(1, layer.height)
+        elif key == "rotation": angle = float(value) % 360
+        self.transform_selection(before, {layer.id: ((x, y), sx, sy, angle)})
+
     def group_selected(self, layer_ids: list[str]):
         if self.document is None or len(layer_ids) < 2:
             return
         from ..core.document import new_id
         layers = [self.document.layer_by_id(i) for i in layer_ids]
         layers = [l for l in layers if l is not None and not l.locked]
-        self._push(commands.GroupCommand(layers, new_id()))
+        if len(layers) >= 2:
+            self._push(commands.GroupCommand(layers, new_id()))
 
     def ungroup_active(self):
         layer = self._active()

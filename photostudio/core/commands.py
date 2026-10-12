@@ -59,6 +59,35 @@ class TransformSelectionCommand(Command):
             set_transform(layer, self.before[layer.id])
 
 
+class SetLayerPropertyCommand(Command):
+    def __init__(self, layer, key, value):
+        self.layer, self.key, self.old, self.new = layer, key, getattr(layer, key), value
+        self.label = f"Set {key}"
+
+    def do(self):
+        setattr(self.layer, self.key, self.new)
+
+    def undo(self):
+        setattr(self.layer, self.key, self.old)
+
+
+class LayerOrderCommand(Command):
+    label = "Reorder Layers"
+
+    def __init__(self, document, ids):
+        self.document = document
+        self.old = list(document.layers)
+        if len(ids) != len(self.old) or set(ids) != {l.id for l in self.old}:
+            raise ValueError("Layer order must contain each layer exactly once")
+        self.new = [document.layer_by_id(i) for i in ids]
+
+    def do(self):
+        self.document.layers[:] = self.new
+
+    def undo(self):
+        self.document.layers[:] = self.old
+
+
 class AdjustmentCommand(Command):
     """Set one adjustment parameter on a layer; coalesces repeated drags."""
 

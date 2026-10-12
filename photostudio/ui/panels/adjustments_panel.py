@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (QHBoxLayout, QLabel, QPushButton, QSlider,
-                               QVBoxLayout, QWidget, QLineEdit, QSpinBox, QComboBox, QColorDialog)
+                               QVBoxLayout, QWidget, QLineEdit, QSpinBox, QComboBox, QColorDialog, QFontComboBox, QCheckBox, QFormLayout, QGroupBox, QDoubleSpinBox)
 
 from ..controller import EditorController
 
@@ -92,6 +92,61 @@ class AdjustmentsPanel(QWidget):
         self.snap_btn = QPushButton("Snap selected to canvas")
         self.snap_btn.clicked.connect(self._snap)
         layout.addWidget(self.snap_btn)
+        self.font_family = QFontComboBox()
+        self.font_family.currentFontChanged.connect(lambda f: controller.set_text_property("font_family", f.family()))
+        layout.addWidget(self.font_family)
+        self.bold = QCheckBox("Bold")
+        self.bold.toggled.connect(lambda v: controller.set_text_property("bold", v))
+        layout.addWidget(self.bold)
+        self.outline = QSpinBox()
+        self.outline.setRange(0, 40)
+        self.outline.setPrefix("Text outline: ")
+        self.outline.valueChanged.connect(lambda v: controller.set_text_property("outline_width", v))
+        layout.addWidget(self.outline)
+        self.shadow = QSpinBox()
+        self.shadow.setRange(0, 100)
+        self.shadow.setPrefix("Shadow offset: ")
+        self.shadow.valueChanged.connect(lambda v: controller.set_text_property("shadow_offset", v))
+        layout.addWidget(self.shadow)
+        self.shape_group = QGroupBox("Shape")
+        shape_layout = QVBoxLayout(self.shape_group)
+        self.shape_kind = QComboBox()
+        self.shape_kind.addItems(["rectangle", "rounded", "ellipse", "triangle", "line"])
+        self.shape_kind.currentTextChanged.connect(lambda v: controller.set_object_property("shape", v))
+        shape_layout.addWidget(self.shape_kind)
+        for title, key in [("Fill colour…", "fill"), ("Stroke colour…", "stroke")]:
+            button = QPushButton(title)
+            button.clicked.connect(lambda _=False, k=key: self._object_color(k))
+            shape_layout.addWidget(button)
+        self.stroke_width = QSpinBox()
+        self.stroke_width.setRange(0, 100)
+        self.stroke_width.setPrefix("Stroke: ")
+        self.stroke_width.valueChanged.connect(lambda v: controller.set_object_property("stroke_width", v))
+        shape_layout.addWidget(self.stroke_width)
+        gradient = QPushButton("Gradient fill…")
+        gradient.clicked.connect(self._gradient)
+        shape_layout.addWidget(gradient)
+        layout.addWidget(self.shape_group)
+        transform = QGroupBox("Transform")
+        form = QFormLayout(transform)
+        self.transforms = {}
+        for key, title in [("x", "X"), ("y", "Y"), ("width", "Width"), ("height", "Height"), ("rotation", "Rotation")]:
+            control = QDoubleSpinBox()
+            control.setDecimals(1 if key == "rotation" else 0)
+            control.setRange(-100000 if key in ("x", "y", "rotation") else 1, 100000)
+            control.setKeyboardTracking(False)
+            control.valueChanged.connect(lambda v, k=key: controller.set_transform_property(k, v))
+            self.transforms[key] = control
+            form.addRow(title, control)
+        layout.addWidget(transform)
+        layout.addWidget(QLabel("Align to canvas"))
+        align_row = QHBoxLayout()
+        for title, where in [("←", "left"), ("↔", "hcenter"), ("→", "right"), ("↑", "top"), ("↕", "vcenter"), ("↓", "bottom")]:
+            button = QPushButton(title)
+            button.setToolTip("Align " + where)
+            button.clicked.connect(lambda _=False, w=where: controller.align_active(w))
+            align_row.addWidget(button)
+        layout.addLayout(align_row)
         self.reset_btn = QPushButton("Reset adjustments")
         self.reset_btn.clicked.connect(self._reset)
         layout.addWidget(self.reset_btn)
@@ -100,6 +155,19 @@ class AdjustmentsPanel(QWidget):
         controller.document_opened.connect(self.refresh)
         controller.document_changed.connect(self.refresh)
         controller.selection_changed.connect(self.refresh)
+
+    def _object_color(self, key):
+        c = QColorDialog.getColor(parent=self)
+        if c.isValid():
+            self.controller.set_object_property(key, [c.red(), c.green(), c.blue(), c.alpha()])
+
+    def _gradient(self):
+        a = QColorDialog.getColor(parent=self, title="Gradient start")
+        if not a.isValid(): return
+        b = QColorDialog.getColor(parent=self, title="Gradient end")
+        if not b.isValid(): return
+        self.controller.set_object_property("gradient", {"angle": 90, "stops": [
+            [0, [a.red(), a.green(), a.blue(), 255]], [1, [b.red(), b.green(), b.blue(), 255]]]})
 
     def _text_color(self):
         c = QColorDialog.getColor(parent=self)
@@ -123,7 +191,7 @@ class AdjustmentsPanel(QWidget):
         enabled = layer is not None and not layer.locked
         self.setEnabled(enabled)
         is_text = layer is not None and layer.kind.value == "text"
-        for widget in (self.text_input, self.font_size, self.text_align, self.text_color):
+        for widget in (self.text_input, self.font_size, self.text_align, self.text_color, self.font_family, self.bold, self.outline, self.shadow):
             widget.setVisible(is_text)
         if is_text:
             for widget in (self.text_input, self.font_size, self.text_align):
@@ -135,5 +203,25 @@ class AdjustmentsPanel(QWidget):
             for widget in (self.text_input, self.font_size, self.text_align):
                 widget.blockSignals(False)
         if layer is not None:
+            for key, control in self.transforms.items():
+                control.blockSignals(True)
+                value = {"x": layer.offset[0], "y": layer.offset[1], "width": layer.width*layer.scale_x,
+                         "height": layer.height*layer.scale_y, "rotation": layer.rotation}[key]
+                control.setValue(value)
+                control.blockSignals(False)
+            for widget in (self.font_family, self.bold, self.outline, self.shadow, self.shape_kind, self.stroke_width):
+                widget.blockSignals(True)
+            if is_text:
+                from PySide6.QtGui import QFont
+                self.font_family.setCurrentFont(QFont(layer.spec.get("font_family", "Segoe UI")))
+                self.bold.setChecked(layer.spec.get("bold", False))
+                self.outline.setValue(layer.spec.get("outline_width", 0))
+                self.shadow.setValue(layer.spec.get("shadow_offset", 0))
+            self.shape_group.setVisible(layer.kind.value == "shape")
+            if layer.kind.value == "shape":
+                self.shape_kind.setCurrentText(layer.spec.get("shape", "rectangle"))
+                self.stroke_width.setValue(layer.spec.get("stroke_width", 0))
+            for widget in (self.font_family, self.bold, self.outline, self.shadow, self.shape_kind, self.stroke_width):
+                widget.blockSignals(False)
             for key, row in self.rows.items():
                 row.sync(layer.adjustments.get(key, 0.0))

@@ -41,13 +41,14 @@ class RenderQueue(QObject):
     ready = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, operation=None):
         super().__init__(parent)
         self.pool = QThreadPool(self)
         self.pool.setMaxThreadCount(1)
         self.revision = 0
         self.pending = None
         self.running = False
+        self.operation = operation or composite
 
     def request(self, document, use_adjustments=True):
         self.revision += 1
@@ -59,7 +60,7 @@ class RenderQueue(QObject):
         revision, doc, adjusted = self.pending
         self.pending = None
         self.running = True
-        job = Job(revision, lambda: composite(doc, use_adjustments=adjusted))
+        job = Job(revision, lambda: self.operation(doc, use_adjustments=adjusted))
         job.signals.done.connect(self._finished)
         self.pool.start(job)
 

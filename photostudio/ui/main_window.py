@@ -6,7 +6,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (QDockWidget, QFileDialog, QInputDialog, QMainWindow,
-                               QMessageBox, QStackedWidget, QStatusBar, QWidget)
+                               QMessageBox, QStackedWidget, QStatusBar, QWidget, QScrollArea)
 
 from .. import (__app_name__, __author__, __author_specialization__,
                 __author_title__, __contact_email__, __github_url__, __version__)
@@ -60,7 +60,13 @@ class MainWindow(QMainWindow):
             (self.layers_panel, "Layers", Qt.DockWidgetArea.RightDockWidgetArea),
         ]:
             dock = QDockWidget(title, self)
-            dock.setWidget(widget)
+            if widget is self.adjust_panel:
+                scroll = QScrollArea()
+                scroll.setWidgetResizable(True)
+                scroll.setWidget(widget)
+                dock.setWidget(scroll)
+            else:
+                dock.setWidget(widget)
             dock.setObjectName(f"dock_{title.lower()}")
             self.addDockWidget(area, dock)
             self._docks.append(dock)
@@ -489,7 +495,11 @@ class MainWindow(QMainWindow):
         if self._confirm_replace():
             self.render_queue.invalidate()
             self.render_queue.pool.waitForDone()
+            self.controller._revision += 1
+            self.controller._processing = None
             self.controller.processing_pool.waitForDone()
+            self.layers_panel.thumbnails.invalidate()
+            self.layers_panel.thumbnails.pool.waitForDone()
             event.accept()
         else:
             event.ignore()

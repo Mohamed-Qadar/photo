@@ -16,9 +16,22 @@ _FONT_DIR = Path(__file__).resolve().parent.parent / "resources" / "fonts"
 
 
 @lru_cache(maxsize=32)
-def _load_font(size: int, bold: bool) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+def _load_font(size: int, bold: bool, family: str = "Segoe UI") -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
     # Prefer a bundled font (offline-safe), then a common system font, then default.
     candidates = []
+    # Resolve installed Windows font families without importing the UI layer.
+    try:
+        import winreg
+        with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE,
+                            r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\Fonts") as key:
+            for i in range(winreg.QueryInfoKey(key)[1]):
+                label, filename, _ = winreg.EnumValue(key, i)
+                name = label.removesuffix(" (TrueType)").casefold()
+                expected = (family + (" Bold" if bold else "")).casefold()
+                if name == expected:
+                    candidates.append(Path("C:/Windows/Fonts") / filename)
+    except (ImportError, OSError):
+        pass
     if _FONT_DIR.exists():
         candidates += sorted(_FONT_DIR.glob("*.ttf"))
     candidates += [Path("C:/Windows/Fonts/segoeuib.ttf" if bold
@@ -39,7 +52,8 @@ def render_text(spec: dict) -> np.ndarray:
     text = str(spec.get("text", ""))
     color = tuple(spec.get("color", [20, 20, 20, 255]))
     align = spec.get("align", "center")
-    font = _load_font(int(spec.get("font_size", 48)), bool(spec.get("bold", False)))
+    font = _load_font(int(spec.get("font_size", 48)), bool(spec.get("bold", False)),
+                      str(spec.get("font_family", "Segoe UI")))
 
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
@@ -51,7 +65,13 @@ def render_text(spec: dict) -> np.ndarray:
         tw, th = draw.textlength(text, font=font), int(spec.get("font_size", 48))
     x = {"left": 0, "center": (w - tw) // 2, "right": w - tw}.get(align, (w - tw) // 2)
     y = max(0, (h - th) // 2)
-    draw.multiline_text((x, y), text, fill=color, font=font, align=align)
+    outline = max(0, int(spec.get("outline_width", 0)))
+    shadow = max(0, int(spec.get("shadow_offset", 0)))
+    if shadow:
+        draw.multiline_text((x + shadow, y + shadow), text, fill=tuple(spec.get("shadow_color", [0, 0, 0, 120])),
+                            font=font, align=align, stroke_width=outline)
+    draw.multiline_text((x, y), text, fill=color, font=font, align=align,
+                        stroke_width=outline, stroke_fill=tuple(spec.get("outline_color", [0, 0, 0, 255])))
     return np.asarray(img, dtype=np.uint8).copy()
 
 
