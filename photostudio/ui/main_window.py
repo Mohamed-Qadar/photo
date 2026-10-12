@@ -134,6 +134,16 @@ class MainWindow(QMainWindow):
         for fname in FILTERS:
             m_filter.addAction(self._act(fname, lambda _=False, n=fname: self.controller.apply_filter(n)))
 
+        m_beauty = mb.addMenu("&Beauty")
+        from ..imaging.beauty import BEAUTY_FILTERS
+        for bname in BEAUTY_FILTERS:
+            m_beauty.addAction(self._act(bname, lambda _=False, n=bname: self.controller.apply_beauty(n)))
+        m_beauty.addSeparator()
+        self.act_heal = QAction("Spot Removal (click skin)", self)
+        self.act_heal.setCheckable(True)
+        self.act_heal.toggled.connect(self._on_heal_toggled)
+        m_beauty.addAction(self.act_heal)
+
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act("Zoom In", self.canvas.zoom_in, "Ctrl+="))
         m_view.addAction(self._act("Zoom Out", self.canvas.zoom_out, "Ctrl+-"))
@@ -159,6 +169,7 @@ class MainWindow(QMainWindow):
         self.controller.history_changed.connect(self._update_actions)
 
         self.canvas.crop_committed.connect(self.controller.crop)
+        self.canvas.point_clicked.connect(self._on_canvas_point)
         self.canvas.zoom_changed.connect(
             lambda s: self.statusBar().showMessage(f"Zoom {int(s * 100)}%", 2000))
 
@@ -197,6 +208,11 @@ class MainWindow(QMainWindow):
             self.on_pick_preset(key)
         elif key == "templates":
             self.on_pick_template()
+        elif key == "beauty":
+            self.on_open_image()
+            if self.controller.document is not None:
+                self.statusBar().showMessage(
+                    "Beauty Studio: use the Beauty menu (smoothing, enhance, blur, spot removal)", 6000)
 
     def on_pick_template(self):
         from ..core import templates
@@ -233,6 +249,18 @@ class MainWindow(QMainWindow):
         if not ok:
             return
         self.controller.new_document(w, h)
+
+    def _on_heal_toggled(self, checked: bool):
+        if checked:
+            self.canvas.begin_point_tool()
+            self.statusBar().showMessage("Click a blemish to remove it (toggle off when done)", 5000)
+        else:
+            self.canvas.end_point_tool()
+
+    def _on_canvas_point(self, x: int, y: int):
+        if getattr(self, "act_heal", None) and self.act_heal.isChecked():
+            self.controller.heal_at(x, y)
+            self.canvas.begin_point_tool()  # stay in heal mode for multiple clicks
 
     def on_import_svg(self):
         if self.controller.document is None:

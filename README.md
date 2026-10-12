@@ -43,9 +43,12 @@ native `.pstudio` project format.
 - Redesigned **home screen** (hero + workspace tiles, no empty panels) and a cleaner editor shell;
   dark (default) and light themes; Settings (General + About) and About window.
 
+- **Beauty Studio** — natural **skin smoothing** (edge-preserving), **portrait enhance**,
+  approximate **background blur**, and **spot/blemish removal** (click to heal); all offline,
+  identity-preserving, with before/after compare.
+
 ### Planned (clearly marked "Soon" in the app — not yet functional)
 
-- **Beauty Studio** — skin smoothing, spot removal, portrait lighting, background blur, before/after.
 - **Passport & ID Photo** — face guides, background replacement, 10×15 / A4 print sheets, PDF export.
 - **Templates** — 20+ bundled editable starter templates (incl. Somali small-business examples).
 - Richer adjustments (saturation, exposure, temperature, sharpen, blur, grayscale, filters),
@@ -142,7 +145,9 @@ Processing and Computer Vision.**
 
 ## Version history
 
-- **1.2.0** (in development) — Milestone D: align-to-canvas, snapping, grouping + group-move, layer
+- **1.2.0** (in development) — Milestone E: Beauty Studio — skin smoothing (bilateral), portrait
+  enhance, background blur, click-to-heal spot removal (OpenCV, offline). Milestone D:
+  align-to-canvas, snapping, grouping + group-move, layer
   reorder/duplicate/opacity/lock, editable typography, SVG import (QtSvg), richer Layers panel,
   Arrange menu. Milestone C: 22 editable offline templates (Business / Education /
   Restaurant / Events, incl. Somali examples), gradient backgrounds, Templates picker. Milestone B:

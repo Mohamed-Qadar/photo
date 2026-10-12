@@ -21,7 +21,7 @@ TILES = [
     ("custom", "Custom Canvas", "Pick exact width, height and DPI.", True),
     ("open_project", "Open Project", "Resume a saved .pstudio project.", True),
     ("templates", "Templates", "20+ editable offline starter designs.", True),
-    ("beauty", "Beauty Studio", "Portrait retouch — coming soon.", False),
+    ("beauty", "Beauty Studio", "Skin smoothing, spot removal, background blur.", True),
     ("passport", "Passport & ID Photo", "Biometric photos & print sheets — coming soon.", False),
 ]
 

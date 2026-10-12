@@ -171,6 +171,26 @@ class EditorController(QObject):
         func, kwargs = FILTERS[name]
         self._push(commands.FilterCommand(self.document, layer, func, name, **kwargs))
 
+    def apply_beauty(self, name: str):
+        from ..imaging.beauty import BEAUTY_FILTERS
+        layer = self._active()
+        if layer is None or layer.pixels is None or name not in BEAUTY_FILTERS:
+            return
+        func, kwargs = BEAUTY_FILTERS[name]
+        self._push(commands.FilterCommand(self.document, layer, func, name, **kwargs))
+
+    def heal_at(self, x: int, y: int, radius: int = 14):
+        from ..imaging.beauty import heal
+        layer = self._active()
+        if layer is None or layer.pixels is None:
+            return
+        # Translate canvas (document) coords to layer-local coords.
+        lx, ly = int(x) - layer.offset[0], int(y) - layer.offset[1]
+        if not (0 <= lx < layer.width and 0 <= ly < layer.height):
+            return
+        self._push(commands.FilterCommand(self.document, layer, heal, "Spot Removal",
+                                          cx=lx, cy=ly, radius=radius))
+
     def delete_active_layer(self):
         layer = self._active()
         if layer is None or self.document is None:

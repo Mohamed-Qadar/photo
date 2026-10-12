@@ -83,6 +83,13 @@ def main() -> int:
         c.import_svg(sp)
         assert len(c.document.layers) == before + 1, "SVG import should add a layer"
 
+    # Beauty Studio on an image document.
+    c._attach(Document.from_image(np.random.randint(60, 200, (120, 120, 4), np.uint8)))
+    for bname in ("Skin Smoothing", "Portrait Enhance", "Background Blur"):
+        c.apply_beauty(bname)
+    c.heal_at(60, 60, 10)
+    assert c.render() is not None
+
     # Template.
     c.open_template("biz_sale")
     assert c.document is not None and len(c.document.layers) >= 3

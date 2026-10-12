@@ -17,6 +17,7 @@ from .qimage_bridge import ndarray_to_qpixmap
 
 class CanvasView(QGraphicsView):
     crop_committed = Signal(int, int, int, int)  # x, y, w, h in image pixels
+    point_clicked = Signal(int, int)             # x, y in image pixels (tools)
     zoom_changed = Signal(float)
 
     MIN_SCALE = 0.02
@@ -39,6 +40,7 @@ class CanvasView(QGraphicsView):
         self._crop_mode = False
         self._crop_item: Optional[QGraphicsRectItem] = None
         self._crop_origin: Optional[QPointF] = None
+        self._point_mode = False  # click-to-act tools (e.g. spot removal)
 
     # ---- image display ------------------------------------------------
     def set_image(self, pixels: np.ndarray, reset_view: bool = False) -> None:
@@ -102,7 +104,23 @@ class CanvasView(QGraphicsView):
             self._crop_item = None
         self._crop_origin = None
 
+    def begin_point_tool(self) -> None:
+        if self._pixmap_item is None:
+            return
+        self._point_mode = True
+        self.setDragMode(QGraphicsView.DragMode.NoDrag)
+        self.setCursor(Qt.CursorShape.CrossCursor)
+
+    def end_point_tool(self) -> None:
+        self._point_mode = False
+        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+        self.unsetCursor()
+
     def mousePressEvent(self, event):
+        if self._point_mode and event.button() == Qt.MouseButton.LeftButton:
+            p = self.mapToScene(event.position().toPoint())
+            self.point_clicked.emit(int(p.x()), int(p.y()))
+            return
         if self._crop_mode and event.button() == Qt.MouseButton.LeftButton:
             self._crop_origin = self.mapToScene(event.position().toPoint())
             self._clear_crop_item()
