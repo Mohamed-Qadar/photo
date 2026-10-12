@@ -54,6 +54,10 @@ class EditorController(QObject):
         doc = project_io.load_project(path)
         self._attach(doc, path=Path(path))
 
+    def open_template(self, key: str):
+        from ..core import templates
+        self._attach(templates.build(templates.get(key)))
+
     # ---- persistence --------------------------------------------------
     def save_project(self, path: Optional[str | Path] = None):
         if self.document is None:

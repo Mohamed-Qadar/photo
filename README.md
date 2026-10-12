@@ -30,6 +30,9 @@ native `.pstudio` project format.
   temperature, grayscale**; **Gaussian blur & sharpen** filters; **before/after** compare (`\`).
 - **Social Media Designer** — real canvas presets (Instagram post/portrait/story, Facebook
   post/cover, YouTube thumbnail, TikTok, WhatsApp Status) using the shared engine.
+- **Templates** — 22 original, fully-editable, offline starter designs across Business,
+  Education, Restaurant and Events (incl. Somali small-business examples); every element is an
+  editable layer; customize and export PNG/JPG.
 - **Graphic Design** — preset canvases (A3/A4 poster, flyer, business card, banner, logo) at correct
   DPI, with text and shapes.
 - Full **undo / redo** (slider, move and text edits coalesce into single steps).
@@ -137,7 +140,9 @@ Processing and Computer Vision.**
 
 ## Version history
 
-- **1.2.0** (in development) — Milestone B: extended non-destructive adjustments (exposure,
+- **1.2.0** (in development) — Milestone C: 22 editable offline templates (Business / Education /
+  Restaurant / Events, incl. Somali examples), gradient backgrounds, Templates picker. Milestone B:
+  extended non-destructive adjustments (exposure,
   saturation, temperature, grayscale) with a Reset, Gaussian blur & sharpen filters, and
   before/after compare. Milestone A: shared design engine with editable **text & shape**
   object layers (render, composite, `.pstudio` persistence, undoable add/move/edit/lock); redesigned

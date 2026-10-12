@@ -187,6 +187,13 @@ class Document:
                 "stroke_width": int(stroke_width)}
         return Layer(kind=LayerKind.SHAPE, spec=spec, name=name or shape.capitalize())
 
+    @staticmethod
+    def make_gradient_layer(width: int, height: int, stops, angle: float = 90.0,
+                            name: str = "Gradient") -> Layer:
+        spec = {"shape": "rectangle", "width": int(width), "height": int(height),
+                "gradient": {"angle": float(angle), "stops": stops}}
+        return Layer(kind=LayerKind.SHAPE, spec=spec, name=name)
+
     def layer_by_id(self, layer_id: str) -> Optional[Layer]:
         for layer in self.layers:
             if layer.id == layer_id:

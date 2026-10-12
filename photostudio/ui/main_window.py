@@ -181,6 +181,17 @@ class MainWindow(QMainWindow):
             self.on_open_project()
         elif key in ("social", "graphic"):
             self.on_pick_preset(key)
+        elif key == "templates":
+            self.on_pick_template()
+
+    def on_pick_template(self):
+        from ..core import templates
+        items = [f"{t.category} — {t.name}" for t in templates.TEMPLATES]
+        keys = [t.key for t in templates.TEMPLATES]
+        choice, ok = QInputDialog.getItem(self, "Templates", "Choose a template:",
+                                          items, 0, False)
+        if ok and choice:
+            self.controller.open_template(keys[items.index(choice)])
 
     def on_pick_preset(self, kind: str):
         from ..core.presets import SOCIAL_PRESETS, GRAPHIC_PRESETS

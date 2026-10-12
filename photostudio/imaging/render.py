@@ -55,9 +55,32 @@ def render_text(spec: dict) -> np.ndarray:
     return np.asarray(img, dtype=np.uint8).copy()
 
 
+def render_gradient(w: int, h: int, grad: dict) -> np.ndarray:
+    """Linear gradient fill. grad = {angle_deg, stops:[[pos0..1, [r,g,b,a]], ...]}."""
+    import math
+    stops = grad.get("stops", [[0.0, [0, 0, 0, 255]], [1.0, [255, 255, 255, 255]]])
+    stops = sorted(stops, key=lambda s: s[0])
+    angle = math.radians(float(grad.get("angle", 0.0)))
+    # Projection coordinate t in [0,1] along the gradient direction.
+    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    dx, dy = math.cos(angle), math.sin(angle)
+    proj = xx * dx + yy * dy
+    proj -= proj.min()
+    denom = proj.max() if proj.max() > 0 else 1.0
+    t = proj / denom
+    pos = np.array([s[0] for s in stops], dtype=np.float32)
+    cols = np.array([s[1] for s in stops], dtype=np.float32)
+    out = np.empty((h, w, 4), dtype=np.float32)
+    for ch in range(4):
+        out[..., ch] = np.interp(t, pos, cols[:, ch])
+    return np.clip(out, 0, 255).astype(np.uint8)
+
+
 def render_shape(spec: dict) -> np.ndarray:
     w = max(1, int(spec.get("width", 1)))
     h = max(1, int(spec.get("height", 1)))
+    if spec.get("gradient"):
+        return render_gradient(w, h, spec["gradient"])
     shape = spec.get("shape", "rectangle")
     fill = tuple(spec["fill"]) if spec.get("fill") else None
     stroke = tuple(spec["stroke"]) if spec.get("stroke") else None
