@@ -42,6 +42,8 @@ class EditorController(QObject):
     def _attach(self, document: Document, path: Optional[Path] = None):
         self._revision += 1
         self.document = document
+        from .workers import snapshot
+        self.original_document = snapshot(document)
         self.selected_ids = [document.active_layer_id] if document.active_layer_id else []
         self.history = History(on_change=self._on_history_change)
         self.project_path = path
@@ -150,7 +152,7 @@ class EditorController(QObject):
     def render(self, use_adjustments: bool = True) -> Optional[np.ndarray]:
         if self.document is None:
             return None
-        return composite(self.document, use_adjustments=use_adjustments)
+        return composite(self.document if use_adjustments else self.original_document)
 
     # ---- editing intents ---------------------------------------------
     def _push(self, command):
@@ -222,12 +224,14 @@ class EditorController(QObject):
         func, kwargs = FILTERS[name]
         self._filter(layer, func, name, **kwargs)
 
-    def apply_beauty(self, name: str):
+    def apply_beauty(self, name: str, strength=None):
         from ..imaging.beauty import BEAUTY_FILTERS
         layer = self._active()
         if layer is None or layer.pixels is None or name not in BEAUTY_FILTERS:
             return
         func, kwargs = BEAUTY_FILTERS[name]
+        if strength is not None:
+            kwargs = {next(iter(kwargs)): max(0, min(1, float(strength)))}
         self._filter(layer, func, name, **kwargs)
 
     def heal_at(self, x: int, y: int, radius: int = 14):
@@ -264,8 +268,13 @@ class EditorController(QObject):
         _, doc, layer, label = pending
         if error:
             self.processing_error.emit(str(error))
-        elif revision == self._revision and doc is self.document and not layer.locked:
-            self._push(commands._PixelSwapCommand(doc, layer, result, False, label))
+        elif revision == self._revision and doc is self.document and (layer is None or not layer.locked):
+            if isinstance(result, Document):
+                self._attach(result)
+                self._dirty = True
+                self.history_changed.emit()
+            else:
+                self._push(commands._PixelSwapCommand(doc, layer, result, False, label))
         else:
             self.processing_error.emit("Image operation discarded because the document changed.")
 
@@ -396,13 +405,31 @@ class EditorController(QObject):
         from ..core import passport
         if self.document is None:
             return
-        photo = composite(self.document)
         psize = next(p for p in passport.PHOTO_SIZES if p.key == photo_size_key)
+        self.make_custom_sheet(psize.width_mm, psize.height_mm, sheet_key, dpi)
+
+    def make_custom_sheet(self, width_mm, height_mm, sheet_key, dpi=300, copies=None):
+        from ..core import passport
+        if self.document is None:
+            return
         sheet = next(s for s in passport.SHEET_SIZES if s.key == sheet_key)
-        sheet_px = passport.build_print_sheet(photo, psize.width_mm, psize.height_mm,
-                                              sheet, dpi=dpi)
-        doc = Document.from_image(sheet_px, name=f"Sheet {sheet.key}", dpi=dpi)
-        self._attach(doc)
+        from .workers import snapshot, Job
+        source = snapshot(self.document)
+        def build():
+            photo = composite(source)
+            sheet_px = passport.build_print_sheet(photo, width_mm, height_mm, sheet, dpi=dpi, copies=copies)
+            return Document.from_image(sheet_px, name=f"Sheet {sheet.key}", dpi=dpi)
+        if passport.mm_to_px(sheet.width_mm, dpi)*passport.mm_to_px(sheet.height_mm, dpi) < 1_000_000:
+            self._attach(build())
+            self._dirty = True
+            self.history_changed.emit()
+        elif self._processing is None:
+            self._processing = (self._revision, self.document, None, "Print Sheet")
+            job = Job(self._revision, build)
+            job.signals.done.connect(self._finish_processing)
+            self.processing_pool.start(job)
+        else:
+            self.processing_error.emit("An image operation is still running. Please wait.")
 
     def export_pdf(self, path: str | Path):
         if self.document is None:

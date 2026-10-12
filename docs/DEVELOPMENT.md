@@ -62,6 +62,20 @@ original editable Somali phone-shop design brings the catalogue to 22. Bounded
 preview compositing preserves source pixels and text specs. Property undo now
 removes formerly absent spec fields instead of leaving invalid null values.
 
+## Phase 5 — portrait and physical print workflows
+
+Portrait properties expose effect strength and spot radius. Before-session compare
+uses an isolated opening-state snapshot, so it includes raster beauty edits and
+geometry changes rather than only switching off tone sliders. The canvas prevents
+editing while displaying this comparison. Approximate portrait blur remains clearly
+labelled and does not use or claim an AI segmentation model.
+
+Passport layouts accept custom millimetre dimensions, DPI and copy counts, show
+sheet capacity and reject impossible layouts. Standard 300-DPI sheets are prepared
+on a worker; stale results cannot replace a document edited during preparation.
+Physical dimensions remain correct in PDF export. Example-size disclaimers remain
+visible. Generated sheets are marked unsaved until the user saves them.
+
 Runtime, installer and package metadata use version 1.2.0. The Phase 1 report is
 historical. The source tree has progressed beyond that initial delivery. Autosave
 and the interactive object canvas are subsequent phases, not baseline capabilities.

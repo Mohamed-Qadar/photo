@@ -49,7 +49,9 @@ SHEET_SIZES = [
 
 def mm_to_px(mm: float, dpi: int) -> int:
     """Convert millimetres to pixels at the given DPI (1 in = 25.4 mm)."""
-    return int(round(mm / 25.4 * dpi))
+    if not np.isfinite(mm) or mm <= 0 or dpi <= 0:
+        raise ValueError("Physical dimensions and DPI must be positive")
+    return max(1, int(round(mm / 25.4 * dpi)))
 
 
 def replace_background(pixels: np.ndarray, new_color=(255, 255, 255),
@@ -106,14 +108,19 @@ def _fit_photo(photo: np.ndarray, pw: int, ph: int) -> np.ndarray:
 
 def build_print_sheet(photo: np.ndarray, photo_w_mm: float, photo_h_mm: float,
                       sheet: SheetSize, dpi: int = 300,
-                      margin_mm: float = 5.0, gutter_mm: float = 2.0) -> np.ndarray:
+                      margin_mm: float = 5.0, gutter_mm: float = 2.0,
+                      copies: int | None = None) -> np.ndarray:
     """Tile copies of a photo onto a print sheet. Returns RGBA at the given DPI."""
     sw = mm_to_px(sheet.width_mm, dpi)
     sh = mm_to_px(sheet.height_mm, dpi)
     pw = mm_to_px(photo_w_mm, dpi)
     ph = mm_to_px(photo_h_mm, dpi)
-    margin = mm_to_px(margin_mm, dpi)
-    gutter = mm_to_px(gutter_mm, dpi)
+    if margin_mm < 0 or gutter_mm < 0:
+        raise ValueError("Margins and gutters cannot be negative")
+    margin = round(margin_mm / 25.4 * dpi)
+    gutter = round(gutter_mm / 25.4 * dpi)
+    if pw > sw - 2*margin or ph > sh - 2*margin:
+        raise ValueError("The photo does not fit inside the sheet margins")
 
     canvas = np.full((sh, sw, 4), 255, dtype=np.uint8)
     tile = _fit_photo(photo, pw, ph)
@@ -124,8 +131,13 @@ def build_print_sheet(photo: np.ndarray, photo_w_mm: float, photo_h_mm: float,
     grid_h = rows * ph + (rows - 1) * gutter
     ox = (sw - grid_w) // 2
     oy = (sh - grid_h) // 2
+    count = cols*rows if copies is None else int(copies)
+    if count < 1 or count > cols*rows:
+        raise ValueError(f"Choose between 1 and {cols*rows} copies")
     for r in range(rows):
         for c in range(cols):
+            if r*cols+c >= count:
+                continue
             x = ox + c * (pw + gutter)
             y = oy + r * (ph + gutter)
             canvas[y:y + ph, x:x + pw] = tile
@@ -139,9 +151,11 @@ def sheet_capacity(photo_w_mm, photo_h_mm, sheet: SheetSize, dpi=300,
     """Return (cols, rows) that fit — useful for tests and UI hints."""
     sw = mm_to_px(sheet.width_mm, dpi); sh = mm_to_px(sheet.height_mm, dpi)
     pw = mm_to_px(photo_w_mm, dpi); ph = mm_to_px(photo_h_mm, dpi)
-    margin = mm_to_px(margin_mm, dpi); gutter = mm_to_px(gutter_mm, dpi)
-    cols = max(1, (sw - 2 * margin + gutter) // (pw + gutter))
-    rows = max(1, (sh - 2 * margin + gutter) // (ph + gutter))
+    if margin_mm < 0 or gutter_mm < 0:
+        raise ValueError("Margins and gutters cannot be negative")
+    margin = round(margin_mm / 25.4 * dpi); gutter = round(gutter_mm / 25.4 * dpi)
+    cols = max(0, (sw - 2 * margin + gutter) // (pw + gutter))
+    rows = max(0, (sh - 2 * margin + gutter) // (ph + gutter))
     return int(cols), int(rows)
 
 

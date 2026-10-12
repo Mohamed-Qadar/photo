@@ -173,7 +173,7 @@ class MainWindow(QMainWindow):
         m_view.addAction(self._act("Zoom In", self.canvas.zoom_in, "Ctrl+="))
         m_view.addAction(self._act("Zoom Out", self.canvas.zoom_out, "Ctrl+-"))
         m_view.addAction(self._act("Fit to Window", self.canvas.fit_to_window, "Ctrl+0"))
-        self.act_compare = QAction("Show Original (Before)", self)
+        self.act_compare = QAction("Before session", self)
         self.act_compare.setCheckable(True)
         self.act_compare.setShortcut(QKeySequence("\\"))
         self.act_compare.toggled.connect(self._on_compare_toggled)
@@ -355,7 +355,7 @@ class MainWindow(QMainWindow):
 
     def _on_canvas_point(self, x: int, y: int):
         if getattr(self, "act_heal", None) and self.act_heal.isChecked():
-            self.controller.heal_at(x, y)
+            self.controller.heal_at(x, y, self.adjust_panel.heal_radius.value())
             self.canvas.begin_point_tool()  # stay in heal mode for multiple clicks
 
     def on_replace_bg(self):
@@ -367,20 +367,18 @@ class MainWindow(QMainWindow):
             self.controller.replace_background((col.red(), col.green(), col.blue()))
 
     def on_make_sheet(self, sheet_key: str):
-        from ..core import passport
+        from .passport_dialog import PassportDialog
         if self.controller.document is None:
             return
-        labels = [p.label for p in passport.PHOTO_SIZES]
-        choice, ok = QInputDialog.getItem(self, "Photo size",
-                                          "Photo size (example sizes — verify official spec):",
-                                          labels, 0, False)
-        if not ok:
+        dialog = PassportDialog(sheet_key, self)
+        if not dialog.exec() or not self._confirm_replace():
             return
-        pkey = passport.PHOTO_SIZES[labels.index(choice)].key
-        if not self._confirm_replace():
-            return
-        self.controller.make_print_sheet(pkey, sheet_key, dpi=300)
-        self.statusBar().showMessage("Print sheet created (300 DPI). Export via Passport → Export PDF.", 5000)
+        width, height, dpi, copies = dialog.values()
+        try:
+            self.controller.make_custom_sheet(width, height, sheet_key, dpi, copies)
+            self.statusBar().showMessage("Preparing print sheet… Export the finished sheet as PDF.", 5000)
+        except Exception as exc:
+            self._error("Could not create print sheet", exc)
 
     def on_export_pdf(self):
         if self.controller.document is None:
@@ -500,11 +498,15 @@ class MainWindow(QMainWindow):
 
     # ---- rendering / state -------------------------------------------
     def _on_document_opened(self):
+        self.act_compare.setChecked(False)
+        self.canvas.read_only = False
         self._show_canvas()
         self._render(reset_view=True)
         self._update_title()
 
     def _on_compare_toggled(self, checked: bool):
+        self.canvas.read_only = checked
+        self.canvas.cancel_gesture()
         self._render()
         self.statusBar().showMessage("Showing original (before)" if checked
                                      else "Showing edited (after)", 2000)
@@ -513,7 +515,8 @@ class MainWindow(QMainWindow):
         use_adj = not (hasattr(self, "act_compare") and self.act_compare.isChecked())
         if self.controller.document is not None:
             self._reset_render_view |= reset_view
-            self.render_queue.request(self.controller.document, use_adj)
+            source = self.controller.document if use_adj else self.controller.original_document
+            self.render_queue.request(source, True)
         self._update_actions()
         self._update_title()
 

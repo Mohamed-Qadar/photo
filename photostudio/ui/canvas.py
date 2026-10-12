@@ -42,6 +42,7 @@ class CanvasView(QGraphicsView):
         self._pan_origin = None
         self._marquee = None
         self.snap_enabled = True
+        self.read_only = False
         self._snap_guides = []
         self.setMouseTracking(True)
         self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -227,7 +228,7 @@ class CanvasView(QGraphicsView):
 
     def drawForeground(self, painter, rect):
         super().drawForeground(painter, rect)
-        if not self.controller:
+        if not self.controller or self.read_only:
             return
         painter.save()
         pen = QPen(QColor("#5b8cff"), 1)
@@ -276,6 +277,8 @@ class CanvasView(QGraphicsView):
         if self._space or event.button() == Qt.MouseButton.MiddleButton:
             self._pan_origin = event.position()
             self.setCursor(Qt.CursorShape.ClosedHandCursor)
+            return
+        if self.read_only:
             return
         if self._crop_mode or self._point_mode:
             return self._tool_press(event)
@@ -441,7 +444,7 @@ class CanvasView(QGraphicsView):
             return
         directions = {Qt.Key.Key_Left: (-1, 0), Qt.Key.Key_Right: (1, 0),
                       Qt.Key.Key_Up: (0, -1), Qt.Key.Key_Down: (0, 1)}
-        if self.controller and event.key() in directions:
+        if self.controller and not self.read_only and event.key() in directions:
             dx, dy = directions[event.key()]
             amount = 10 if event.modifiers() & Qt.KeyboardModifier.ShiftModifier else 1
             self.controller.nudge_selection(dx*amount, dy*amount)
@@ -456,6 +459,8 @@ class CanvasView(QGraphicsView):
         super().keyReleaseEvent(event)
 
     def mouseDoubleClickEvent(self, event):
+        if self.read_only:
+            return
         layer = self._hit_layer(self.mapToScene(event.position().toPoint()))
         if layer and layer.kind.value == "text" and not layer.locked:
             from PySide6.QtWidgets import QInputDialog
