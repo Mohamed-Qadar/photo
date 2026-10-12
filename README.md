@@ -17,6 +17,18 @@ computer — no account, no subscription, and no internet connection required. I
 non-destructive, layer-based document model so your edits stay re-editable, with full undo/redo and a
 native `.pstudio` project format.
 
+All editing tools, templates, project saving and exports remain free. Free PNG,
+JPG and PDF exports include a small attribution near the bottom edge; editable
+projects and the editing canvas do not. **File → Export Preview** shows the actual
+export appearance. **File / Help → Remove Watermark** provides English payment
+instructions and offline activation for a $10 USD, one-time, one-computer perpetual
+watermark-removal license. No account, subscription or online activation is needed.
+
+Payment: EVC Plus **0611354800**. After payment, send the confirmation SMS and
+PhotoStudio Device ID to Mohamed at **mohamedqadar280@gmail.com** or WhatsApp
+**+252611354800**. Mohamed verifies payment manually and supplies a signed key.
+See [license issuance and activation](docs/LICENSING.md) for developer instructions.
+
 ## Features
 
 ### Implemented (working today)

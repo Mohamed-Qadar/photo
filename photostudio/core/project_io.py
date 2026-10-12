@@ -148,9 +148,9 @@ def load_project(path: str | Path) -> Document:
 
 
 def export_document(document: Document, path: str | Path, fmt: str = "png",
-                    quality: int = 92, keep_alpha: bool = True) -> None:
-    """Flatten a copy and write it. Export matches the editor preview."""
-    flat = composite(document)
+                    quality: int = 92, keep_alpha: bool = True, license_manager=None) -> None:
+    """Flatten a copy; all export formats share the verified license policy."""
+    flat = export_pixels(document, license_manager)
     fmt = fmt.lower().lstrip(".")
     if fmt in ("png",):
         img_io.save_png(flat, path, keep_alpha=keep_alpha, dpi=document.dpi)
@@ -161,3 +161,11 @@ def export_document(document: Document, path: str | Path, fmt: str = "png",
         export_pdf(flat, path, dpi=document.dpi or 300)
     else:
         raise ValueError(f"Unsupported export format: {fmt!r}")
+
+
+def export_pixels(document, license_manager=None):
+    from .licensing import LicenseManager
+    from ..imaging.watermark import apply_watermark
+    manager = license_manager if license_manager is not None else LicenseManager()
+    flat = composite(document)
+    return flat if manager.is_active() else apply_watermark(flat)

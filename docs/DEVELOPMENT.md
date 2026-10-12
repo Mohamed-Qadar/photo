@@ -121,3 +121,19 @@ Version stays 1.2.0 in active development. These are test artifacts; this work d
 not create a version tag or publish a release. Remaining product boundaries are
 documented in README.md, including approximate portrait effects, the 40-megapixel
 allocation limit, and future masks/adjustment layers/batch editing.
+
+## Offline watermark license
+
+This update is limited to export attribution, manual payment instructions and a
+perpetual one-computer watermark-removal license. All editing tools remain free.
+Export rendering and its visible preview share verified license policy; project
+content and editor rendering remain unchanged. Signed activation is verified with
+Ed25519 entirely offline and persisted atomically. The private signing credential
+is outside the checkout; only its public verification key is bundled. A separate
+developer CLI issues keys after payment verification and keeps issuance records
+outside the repository. See LICENSING.md for commands and practical offline limits.
+
+Local validation: 134 tests pass, including 17 licensing/watermark tests. Those 17
+also pass at 200% display scaling. The source GUI smoke workflow passes with the
+payment dialog, invalid-signature check, visible export preview and free export
+watermark. Windows CI runs this same smoke workflow against the packaged app.

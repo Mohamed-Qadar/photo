@@ -41,6 +41,8 @@ class MainWindow(QMainWindow):
         from .file_jobs import FileJobs
         self.autosave = Autosave(self.controller, self)
         self.file_jobs = FileJobs(self)
+        from ..core.licensing import LicenseManager
+        self.license_manager = LicenseManager()
         self._recovery_path = None
         self._closed = False
         from .workers import RenderQueue
@@ -124,6 +126,8 @@ class MainWindow(QMainWindow):
         m_file.addSeparator()
         self.act_export = self._act("Export…", self.on_export, "Ctrl+E")
         m_file.addAction(self.act_export)
+        m_file.addAction(self._act("Export Preview…", self.on_export_preview))
+        m_file.addAction(self._act("Remove Watermark…", self.on_remove_watermark))
         m_file.addSeparator()
         m_file.addAction(self._act("Home", self._show_home))
         m_file.addAction(self._act("Exit", self.close, "Ctrl+Q"))
@@ -205,6 +209,7 @@ class MainWindow(QMainWindow):
         m_view.addAction(self._act("Light Theme", lambda: self.apply_theme(dark=False)))
 
         m_help = mb.addMenu(tr("&Help"))
+        m_help.addAction(self._act("Remove Watermark…", self.on_remove_watermark))
         m_help.addAction(self._act("Settings…", self.on_settings))
         m_help.addAction(self._act("About", self.on_about))
 
@@ -508,6 +513,42 @@ class MainWindow(QMainWindow):
         except Exception as exc:  # noqa: BLE001
             self._error("Could not export", exc)
 
+    def on_remove_watermark(self):
+        from .license_dialog import LicenseDialog
+        LicenseDialog(self.license_manager, self).exec()
+
+    def on_export_preview(self):
+        if self.controller.document is None:
+            return
+        from .workers import snapshot
+        from ..core.project_io import export_pixels
+        from PIL import Image
+        from PySide6.QtWidgets import QDialog, QVBoxLayout, QLabel, QPushButton
+        from PySide6.QtGui import QImage, QPixmap
+        source = snapshot(self.controller.document)
+        def render():
+            image = Image.fromarray(export_pixels(source, self.license_manager), "RGBA")
+            image.thumbnail((1000, 650))
+            return image
+        try:
+            image = self.file_jobs.run(render, tr("Rendering export preview…"))
+        except Exception as exc:
+            self._error("Could not render export preview", exc)
+            return
+        dialog = QDialog(self)
+        dialog.setWindowTitle(tr("Export Preview"))
+        layout = QVBoxLayout(dialog)
+        layout.addWidget(QLabel(tr("Export preview includes the watermark unless a valid license is active.")))
+        preview = QLabel()
+        buffer = image.tobytes()
+        qt_image = QImage(buffer, image.width, image.height, image.width*4, QImage.Format.Format_RGBA8888).copy()
+        preview.setPixmap(QPixmap.fromImage(qt_image))
+        layout.addWidget(preview)
+        close = QPushButton(tr("Close"))
+        close.clicked.connect(dialog.accept)
+        layout.addWidget(close)
+        dialog.exec()
+
     def on_begin_crop(self):
         self.canvas.begin_crop()
         self.statusBar().showMessage(tr("Crop: drag a rectangle on the canvas (Esc to cancel)"), 4000)
@@ -643,7 +684,7 @@ class MainWindow(QMainWindow):
         from .workers import snapshot
         from ..core.project_io import export_document
         source = snapshot(self.controller.document)
-        self.file_jobs.run(lambda: export_document(source, path, fmt), tr("Exporting…"))
+        self.file_jobs.run(lambda: export_document(source, path, fmt, license_manager=self.license_manager), tr("Exporting…"))
 
     def _open_recent(self, path):
         if path and self._confirm_replace():

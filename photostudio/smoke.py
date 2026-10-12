@@ -149,9 +149,50 @@ def main() -> int:
     assert win.menuBar().actions()[0].text() == "&Fayl"
     win.change_language("en")
     assert win.menuBar().actions()[0].text() == "&File"
+    # Packaged builds must also load the public key, crypto backend and payment UI.
+    from photostudio.ui.license_dialog import LicenseDialog
+    from photostudio.core.project_io import export_pixels
+    from photostudio.core.licensing import verify_license, LicenseError, encode_part
+    from photostudio.core.pipeline import composite
+    import numpy as np
+    assert not win.license_manager.is_active()
+    assert not np.array_equal(export_pixels(c.document, win.license_manager), composite(c.document))
+    payment = LicenseDialog(win.license_manager, win)
+    payment.show()
+    payment.copy_payment.click()
+    assert app.clipboard().text() == "0611354800"
+    payment.copy_device.click()
+    assert app.clipboard().text() == win.license_manager.device_id
+    invalid = "PSL1." + encode_part(b"{}") + "." + encode_part(bytes(64))
+    payment.key.setPlainText(invalid)
+    payment.activate_button.click()
+    assert "Invalid license" in payment.message.text()
+    try:
+        verify_license(invalid, win.license_manager.device_id)
+    except LicenseError:
+        pass
+    else:
+        raise AssertionError("Invalid signature accepted")
+    app.processEvents()
+    # Exercise the actual preview action and close its modal UI automatically.
+    from PySide6.QtCore import QTimer
+    preview_seen = []
+    def close_export_preview():
+        modal = app.activeModalWidget()
+        if modal and modal.windowTitle() == "Export Preview":
+            preview_seen.append(True)
+            modal.accept()
+        else:
+            QTimer.singleShot(10, close_export_preview)
+    QTimer.singleShot(10, close_export_preview)
+    win.on_export_preview()
+    assert preview_seen
     if "--smoke-output" in sys.argv:
         out = Path(sys.argv[sys.argv.index("--smoke-output")+1])
         out.mkdir(parents=True, exist_ok=True)
+        payment.grab().save(str(out/"license_dialog_en.png"))
+        from PIL import Image
+        Image.fromarray(export_pixels(c.document, win.license_manager), "RGBA").save(out/"free_export_preview.png")
         c.open_template("biz_sale")
         c.select([c.document.layers[2].id])
         drain()
@@ -162,7 +203,8 @@ def main() -> int:
         win.change_language("so")
         app.processEvents()
         win.grab().save(str(out/"home_so.png"))
-        (out/"smoke_result.txt").write_text("SMOKE OK: photo, design, SVG, portrait, passport, mouse, persistence, exports and localization", encoding="utf-8")
+        (out/"smoke_result.txt").write_text("SMOKE OK: photo, design, SVG, portrait, passport, mouse, persistence, exports, localization, watermark, export preview and offline license verification", encoding="utf-8")
+    payment.close()
     # Home navigation toggles docks.
     win._show_home()
     assert all(not dock.isVisible() for dock in win._docks)

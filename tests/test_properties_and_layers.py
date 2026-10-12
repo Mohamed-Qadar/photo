@@ -73,7 +73,8 @@ def test_properties_typography_shape_export_and_project(qtbot, tmp_path):
     c.export(png, "png")
     loaded = project_io.load_project(project)
     assert loaded.layers[1].spec["text"] == "Dukaanka Magaalada"
-    assert np.array_equal(load_image(png), composite(loaded))
+    from photostudio.imaging.watermark import apply_watermark
+    assert np.array_equal(load_image(png), apply_watermark(composite(loaded)))
     finish(win)
 
 

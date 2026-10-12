@@ -137,6 +137,11 @@ SO = {
 }
 
 SNIPPETS = {
+    "Remove Watermark…": "Ka saar calaamadda biyaha…",
+    "Export Preview…": "Horudhaca dhoofinta…",
+    "Export Preview": "Horudhaca dhoofinta",
+    "Rendering export preview…": "Samaynta horudhaca dhoofinta…",
+    "Export preview includes the watermark unless a valid license is active.": "Horudhaca dhoofinta waxaa ku jira calaamadda biyaha haddii ruqsad sax ahi aanay shaqaynayn.",
     "Version ": "Nooca ", "Developed by ": "Waxaa sameeyay ",
     "Computer Engineer": "Injineer kombiyuutar", "specializing in ": "ku takhasusay ",
     "Specializing in ": "Ku takhasusay ",

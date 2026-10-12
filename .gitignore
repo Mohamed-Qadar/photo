@@ -25,6 +25,8 @@ secrets.*
 *.pem
 *.key
 *.pfx
+*.pslicense
+*.issuance.jsonl
 
 # --- Local user data / editor state ---
 *.pstudio
