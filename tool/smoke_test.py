@@ -64,6 +64,29 @@ def main() -> int:
         c.export(jpg, "jpg")
         assert png.exists() and jpg.exists()
 
+    # Graphic-design ops on a design document.
+    c.new_document(600, 400, name="Design")
+    c.add_shape("rectangle")
+    c.align_active("hcenter"); c.align_active("vcenter")
+    c.duplicate_active()
+    c.set_opacity(0.5)
+    c.reorder_active(-1)
+
+    # SVG import (offline, via QtSvg).
+    import tempfile as _tf
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64">'
+           '<circle cx="32" cy="32" r="28" fill="red"/></svg>')
+    with _tf.TemporaryDirectory() as d:
+        sp = Path(d) / "x.svg"
+        sp.write_text(svg, encoding="utf-8")
+        before = len(c.document.layers)
+        c.import_svg(sp)
+        assert len(c.document.layers) == before + 1, "SVG import should add a layer"
+
+    # Template.
+    c.open_template("biz_sale")
+    assert c.document is not None and len(c.document.layers) >= 3
+
     # Home navigation toggles docks.
     win._show_home()
     assert all(not dock.isVisible() for dock in win._docks)

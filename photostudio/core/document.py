@@ -67,6 +67,7 @@ class Layer:
     blend: BlendMode = BlendMode.NORMAL
     adjustments: dict[str, float] = field(default_factory=lambda: dict(ADJUSTMENT_DEFAULTS))
     spec: dict = field(default_factory=dict)  # TEXT/SHAPE object definition
+    group: Optional[str] = None               # group id (layers sharing it move together)
 
     def __post_init__(self) -> None:
         if self.kind == LayerKind.IMAGE:
@@ -128,6 +129,7 @@ class Layer:
             blend=self.blend,
             adjustments=dict(self.adjustments),
             spec=dict(self.spec),
+            group=self.group,
         )
 
 

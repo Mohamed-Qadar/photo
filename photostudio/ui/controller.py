@@ -58,6 +58,32 @@ class EditorController(QObject):
         from ..core import templates
         self._attach(templates.build(templates.get(key)))
 
+    def import_svg(self, path: str | Path, max_size: int = 1024):
+        """Rasterize an SVG via Qt and add it as an image layer (offline)."""
+        if self.document is None:
+            return
+        from PySide6.QtCore import QRectF
+        from PySide6.QtGui import QImage, QPainter
+        from PySide6.QtSvg import QSvgRenderer
+        renderer = QSvgRenderer(str(path))
+        if not renderer.isValid():
+            raise ValueError("Invalid or unreadable SVG")
+        size = renderer.defaultSize()
+        w = size.width() or max_size
+        h = size.height() or max_size
+        scale = min(max_size / max(w, 1), max_size / max(h, 1), 1.0)
+        tw, th = max(1, int(w * scale)), max(1, int(h * scale))
+        img = QImage(tw, th, QImage.Format.Format_RGBA8888)
+        img.fill(0)
+        painter = QPainter(img)
+        renderer.render(painter, QRectF(0, 0, tw, th))
+        painter.end()
+        from .qimage_bridge import qimage_to_ndarray
+        pixels = qimage_to_ndarray(img)
+        from ..core.document import Layer
+        layer = Layer(pixels=pixels, name=Path(path).stem)
+        self._push(commands.AddLayerCommand(self.document, layer))
+
     # ---- persistence --------------------------------------------------
     def save_project(self, path: Optional[str | Path] = None):
         if self.document is None:
@@ -151,11 +177,56 @@ class EditorController(QObject):
             return
         self._push(commands.RemoveLayerCommand(self.document, layer))
 
+    def reorder_active(self, delta: int):
+        layer = self._active()
+        if layer and self.document:
+            self._push(commands.ReorderLayerCommand(self.document, layer, delta))
+
+    def duplicate_active(self):
+        layer = self._active()
+        if layer and self.document:
+            self._push(commands.DuplicateLayerCommand(self.document, layer))
+
+    def set_opacity(self, opacity: float):
+        layer = self._active()
+        if layer:
+            self._push(commands.SetOpacityCommand(layer, opacity))
+
+    def align_active(self, where: str):
+        layer = self._active()
+        if layer and self.document:
+            self._push(commands.AlignCommand(self.document, layer, where))
+
+    def set_text_property(self, key: str, value):
+        layer = self._active()
+        if layer and layer.kind.value == "text":
+            self._push(commands.SetTextPropertyCommand(layer, key, value))
+
+    def group_selected(self, layer_ids: list[str]):
+        if self.document is None or len(layer_ids) < 2:
+            return
+        from ..core.document import new_id
+        layers = [self.document.layer_by_id(i) for i in layer_ids]
+        layers = [l for l in layers if l is not None]
+        self._push(commands.GroupCommand(layers, new_id()))
+
+    def ungroup_active(self):
+        layer = self._active()
+        if layer is None or layer.group is None or self.document is None:
+            return
+        members = [l for l in self.document.layers if l.group == layer.group]
+        self._push(commands.GroupCommand(members, None))
+
     def move_active_layer(self, x: int, y: int):
         layer = self._active()
         if layer is None:
             return
-        self._push(commands.MoveLayerCommand(layer, (int(x), int(y))))
+        if layer.group is not None and self.document is not None:
+            dx, dy = int(x) - layer.offset[0], int(y) - layer.offset[1]
+            members = [l for l in self.document.layers if l.group == layer.group]
+            self._push(commands.MoveGroupCommand(members, dx, dy))
+        else:
+            self._push(commands.MoveLayerCommand(layer, (int(x), int(y))))
 
     def set_text(self, text: str):
         layer = self._active()

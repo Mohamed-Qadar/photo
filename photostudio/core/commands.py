@@ -160,6 +160,139 @@ class MoveLayerCommand(Command):
         return False
 
 
+class ReorderLayerCommand(Command):
+    """Move a layer up/down in z-order (delta +1 = up/toward top)."""
+
+    def __init__(self, document: Document, layer: Layer, delta: int):
+        self.document = document
+        self.layer = layer
+        self.old_index = document.index_of(layer.id)
+        self.new_index = max(0, min(len(document.layers) - 1, self.old_index + delta))
+        self.label = "Raise Layer" if delta > 0 else "Lower Layer"
+
+    def _move(self, src: int, dst: int):
+        layer = self.document.layers.pop(src)
+        self.document.layers.insert(dst, layer)
+
+    def do(self) -> None:
+        self._move(self.old_index, self.new_index)
+
+    def undo(self) -> None:
+        self._move(self.new_index, self.old_index)
+
+
+class DuplicateLayerCommand(Command):
+    def __init__(self, document: Document, layer: Layer):
+        self.document = document
+        self.source = layer
+        self.copy = layer.copy()
+        from .document import new_id
+        self.copy.id = new_id()
+        self.copy.name = f"{layer.name} copy"
+        ox, oy = layer.offset
+        self.copy.offset = (ox + 16, oy + 16)
+        self.label = "Duplicate Layer"
+
+    def do(self) -> None:
+        idx = self.document.index_of(self.source.id) + 1
+        self.document.add_layer(self.copy, idx)
+
+    def undo(self) -> None:
+        self.document.remove_layer(self.copy.id)
+
+
+class SetOpacityCommand(Command):
+    def __init__(self, layer: Layer, opacity: float):
+        self.layer = layer
+        self.old = layer.opacity
+        self.new = max(0.0, min(1.0, float(opacity)))
+        self.label = "Set Opacity"
+
+    def do(self) -> None:
+        self.layer.opacity = self.new
+
+    def undo(self) -> None:
+        self.layer.opacity = self.old
+
+    def merge_with(self, other: "Command") -> bool:
+        if isinstance(other, SetOpacityCommand) and other.layer is self.layer:
+            self.new = other.new
+            self.layer.opacity = self.new
+            return True
+        return False
+
+
+class GroupCommand(Command):
+    """Assign a shared group id to several layers (or clear it to ungroup)."""
+
+    def __init__(self, layers: list[Layer], group_id):
+        self.layers = layers
+        self.old = {l.id: l.group for l in layers}
+        self.group_id = group_id
+        self.label = "Group" if group_id else "Ungroup"
+
+    def do(self) -> None:
+        for l in self.layers:
+            l.group = self.group_id
+
+    def undo(self) -> None:
+        for l in self.layers:
+            l.group = self.old[l.id]
+
+
+class AlignCommand(Command):
+    """Align a layer to the canvas on one axis."""
+
+    def __init__(self, document: Document, layer: Layer, where: str):
+        from .arrange import align_offset
+        self.layer = layer
+        self.old_offset = layer.offset
+        self.new_offset = align_offset(layer.width, layer.height,
+                                       document.width, document.height,
+                                       where, layer.offset)
+        self.label = f"Align {where}"
+
+    def do(self) -> None:
+        self.layer.offset = self.new_offset
+
+    def undo(self) -> None:
+        self.layer.offset = self.old_offset
+
+
+class SetTextPropertyCommand(Command):
+    """Edit a text layer's typography (font_size/color/align/bold)."""
+
+    def __init__(self, layer: Layer, key: str, value):
+        self.layer = layer
+        self.key = key
+        self.old = layer.spec.get(key)
+        self.new = value
+        self.label = f"Text {key}"
+
+    def do(self) -> None:
+        self.layer.spec[self.key] = self.new
+
+    def undo(self) -> None:
+        self.layer.spec[self.key] = self.old
+
+
+class MoveGroupCommand(Command):
+    """Move all layers sharing a group by the same (dx, dy)."""
+
+    def __init__(self, layers: list[Layer], dx: int, dy: int):
+        self.layers = layers
+        self.dx, self.dy = int(dx), int(dy)
+        self.label = "Move Group"
+
+    def do(self) -> None:
+        for l in self.layers:
+            l.offset = (l.offset[0] + self.dx, l.offset[1] + self.dy)
+
+    def undo(self) -> None:
+        for l in self.layers:
+            l.offset = (l.offset[0] - self.dx, l.offset[1] - self.dy)
+
+
 class SetLayerLockCommand(Command):
     def __init__(self, layer: Layer, locked: bool):
         self.layer = layer

@@ -62,6 +62,7 @@ def save_project(document: Document, path: str | Path) -> None:
                 "opacity": layer.opacity,
                 "blend": layer.blend.value,
                 "adjustments": layer.adjustments,
+                "group": layer.group,
             }
             if layer.is_object:
                 # Editable object: store its spec, not flattened pixels.
@@ -111,6 +112,7 @@ def load_project(path: str | Path) -> Document:
                 blend=BlendMode(entry.get("blend", "normal")),
                 adjustments=dict(entry.get("adjustments", {})),
                 spec=dict(entry.get("spec", {})),
+                group=entry.get("group"),
             ))
     return Document(
         width=int(manifest["width"]),

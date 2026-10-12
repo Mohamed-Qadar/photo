@@ -17,3 +17,12 @@ def ndarray_to_qimage(pixels: np.ndarray) -> QImage:
 
 def ndarray_to_qpixmap(pixels: np.ndarray) -> QPixmap:
     return QPixmap.fromImage(ndarray_to_qimage(pixels))
+
+
+def qimage_to_ndarray(img: QImage) -> np.ndarray:
+    """QImage -> RGBA uint8 H x W x 4 (copied)."""
+    img = img.convertToFormat(QImage.Format.Format_RGBA8888)
+    w, h = img.width(), img.height()
+    ptr = img.constBits()
+    arr = np.frombuffer(ptr, dtype=np.uint8, count=h * w * 4).reshape(h, w, 4)
+    return arr.copy()

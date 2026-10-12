@@ -78,6 +78,7 @@ class MainWindow(QMainWindow):
         m_file.addAction(self._act("New Project…", self.on_new, "Ctrl+N"))
         m_file.addAction(self._act("Open Image…", self.on_open_image, "Ctrl+O"))
         m_file.addAction(self._act("Open Project…", self.on_open_project, "Ctrl+Shift+O"))
+        m_file.addAction(self._act("Import SVG…", self.on_import_svg))
         m_file.addSeparator()
         self.act_save = self._act("Save Project", self.on_save, "Ctrl+S")
         self.act_save_as = self._act("Save Project As…", self.on_save_as, "Ctrl+Shift+S")
@@ -114,6 +115,19 @@ class MainWindow(QMainWindow):
             m_insert.addAction(self._act(label, lambda _=False, s=shape: self.controller.add_shape(s)))
         m_insert.addSeparator()
         m_insert.addAction(self._act("Delete Layer", self.controller.delete_active_layer, "Del"))
+
+        m_arrange = mb.addMenu("&Arrange")
+        for label, where in [("Align Left", "left"), ("Align Center", "hcenter"),
+                             ("Align Right", "right"), ("Align Top", "top"),
+                             ("Align Middle", "vcenter"), ("Align Bottom", "bottom")]:
+            m_arrange.addAction(self._act(label, lambda _=False, w=where: self.controller.align_active(w)))
+        m_arrange.addSeparator()
+        m_arrange.addAction(self._act("Bring Forward", lambda: self.controller.reorder_active(1), "Ctrl+]"))
+        m_arrange.addAction(self._act("Send Backward", lambda: self.controller.reorder_active(-1), "Ctrl+["))
+        m_arrange.addAction(self._act("Duplicate Layer", self.controller.duplicate_active, "Ctrl+J"))
+        m_arrange.addSeparator()
+        m_arrange.addAction(self._act("Group Selected", self.on_group, "Ctrl+G"))
+        m_arrange.addAction(self._act("Ungroup", self.controller.ungroup_active, "Ctrl+Shift+G"))
 
         m_filter = mb.addMenu("&Filter")
         from ..imaging.filters import FILTERS
@@ -219,6 +233,20 @@ class MainWindow(QMainWindow):
         if not ok:
             return
         self.controller.new_document(w, h)
+
+    def on_import_svg(self):
+        if self.controller.document is None:
+            return
+        path, _ = QFileDialog.getOpenFileName(self, "Import SVG", "", "SVG (*.svg)")
+        if path:
+            try:
+                self.controller.import_svg(path)
+            except Exception as exc:  # noqa: BLE001
+                self._error("Could not import SVG", exc)
+
+    def on_group(self):
+        ids = self.layers_panel.selected_layer_ids()
+        self.controller.group_selected(ids)
 
     def on_add_text(self):
         text, ok = QInputDialog.getText(self, "Add Text", "Text:", text="Your text")

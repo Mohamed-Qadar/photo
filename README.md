@@ -34,7 +34,9 @@ native `.pstudio` project format.
   Education, Restaurant and Events (incl. Somali small-business examples); every element is an
   editable layer; customize and export PNG/JPG.
 - **Graphic Design** — preset canvases (A3/A4 poster, flyer, business card, banner, logo) at correct
-  DPI, with text and shapes.
+  DPI, with text and shapes; **gradient** backgrounds, **SVG import**, **align to canvas** (6 ways),
+  **snapping** helpers, layer **grouping** (move together), **reorder / duplicate / opacity / lock**,
+  and editable **typography** (font size, colour, bold, alignment).
 - Full **undo / redo** (slider, move and text edits coalesce into single steps).
 - Save / open native **`.pstudio`** projects — text & shapes round-trip **editable**, never flattened.
 - Export to **PNG** and **JPG**, matching the editor preview.
@@ -140,7 +142,9 @@ Processing and Computer Vision.**
 
 ## Version history
 
-- **1.2.0** (in development) — Milestone C: 22 editable offline templates (Business / Education /
+- **1.2.0** (in development) — Milestone D: align-to-canvas, snapping, grouping + group-move, layer
+  reorder/duplicate/opacity/lock, editable typography, SVG import (QtSvg), richer Layers panel,
+  Arrange menu. Milestone C: 22 editable offline templates (Business / Education /
   Restaurant / Events, incl. Somali examples), gradient backgrounds, Templates picker. Milestone B:
   extended non-destructive adjustments (exposure,
   saturation, temperature, grayscale) with a Reset, Gaussian blur & sharpen filters, and
