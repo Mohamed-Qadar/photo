@@ -2,7 +2,7 @@
 
 **Offline-first photo & design studio for Windows 10/11 (x64).**
 
-> **Version 1.1.1 — in active development (Phase 1 vertical slice).**
+> **Version 1.2.0 — in active development (Phase 1 vertical slice).**
 > The core photo-editing workflow is implemented and tested; many advanced modules are planned and
 > are shown as clearly-disabled tiles in the app until they are built. No fake features.
 
@@ -143,9 +143,9 @@ iscc installer\photostudio.iss
 **Developed by Eng. Mohamed Ibrahim Abdi — Computer Engineer, specializing in Natural Language
 Processing and Computer Vision.**
 
-- Contact: [mohaqadar280@gmail.com](mailto:mohaqadar280@gmail.com)
+- Contact: [mohamedqadar280@gmail.com](mailto:mohamedqadar280@gmail.com)
 - GitHub: [https://github.com/Mohamed-Qadar/photo](https://github.com/Mohamed-Qadar/photo)
-- Version: 1.1.1
+- Version: 1.2.0
 
 ## Version history
 
@@ -163,7 +163,7 @@ Processing and Computer Vision.**
   object layers (render, composite, `.pstudio` persistence, undoable add/move/edit/lock); redesigned
   home screen (hero + tiles, no empty panels / dark rectangles); Social Media & Graphic Design
   workspaces backed by the shared engine with real canvas presets; Insert menu (text/shapes);
-  docks hidden on the home screen. 36 automated tests passing.
+  docks hidden on the home screen. 71 baseline automated tests.
 - **1.1.1** — Project identity & Windows distribution setup: app version/attribution, original app
   icon, PyInstaller spec with EXE metadata, Inno Setup installer, GitHub Actions Windows build
   pipeline (tests → build → installer → checksum → artifact, pre-release on tags), full README.

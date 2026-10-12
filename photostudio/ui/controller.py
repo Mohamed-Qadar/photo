@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 import numpy as np
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, Slot, QThreadPool
 
 from ..core import commands
 from ..core.document import Document
@@ -20,6 +20,7 @@ from ..imaging import io as img_io
 
 
 class EditorController(QObject):
+    processing_error = Signal(str)
     document_changed = Signal()       # structure/pixels changed -> re-render
     history_changed = Signal()        # undo/redo availability changed
     document_opened = Signal()        # a new document became active
@@ -30,9 +31,14 @@ class EditorController(QObject):
         self.history: Optional[History] = None
         self.project_path: Optional[Path] = None
         self._dirty = False
+        self._revision = 0
+        self.processing_pool = QThreadPool(self)
+        self.processing_pool.setMaxThreadCount(1)
+        self._processing = None
 
     # ---- lifecycle ----------------------------------------------------
     def _attach(self, document: Document, path: Optional[Path] = None):
+        self._revision += 1
         self.document = document
         self.history = History(on_change=self._on_history_change)
         self.project_path = path
@@ -110,6 +116,7 @@ class EditorController(QObject):
     def _push(self, command):
         if self.history is None:
             return
+        self._revision += 1
         self.history.push(command)
         self._dirty = True
         self.document_changed.emit()
@@ -122,25 +129,25 @@ class EditorController(QObject):
 
     def crop(self, x: int, y: int, w: int, h: int):
         layer = self._active()
-        if layer is None:
+        if layer is None or layer.pixels is None:
             return
-        self._push(commands.CropCommand(self.document, layer, x, y, w, h))
+        self._push(commands.CropCommand(self.document, layer, x - layer.offset[0], y - layer.offset[1], w, h))
 
     def rotate_90(self, turns: int = 1):
         layer = self._active()
-        if layer is None:
+        if layer is None or layer.pixels is None:
             return
         self._push(commands.Rotate90Command(self.document, layer, turns))
 
     def flip(self, horizontal: bool):
         layer = self._active()
-        if layer is None:
+        if layer is None or layer.pixels is None:
             return
         self._push(commands.FlipCommand(self.document, layer, horizontal))
 
     def resize(self, width: int, height: int):
         layer = self._active()
-        if layer is None:
+        if layer is None or layer.pixels is None:
             return
         self._push(commands.ResizeCommand(self.document, layer, width, height))
 
@@ -169,7 +176,7 @@ class EditorController(QObject):
         if layer is None or layer.pixels is None or name not in FILTERS:
             return
         func, kwargs = FILTERS[name]
-        self._push(commands.FilterCommand(self.document, layer, func, name, **kwargs))
+        self._filter(layer, func, name, **kwargs)
 
     def apply_beauty(self, name: str):
         from ..imaging.beauty import BEAUTY_FILTERS
@@ -177,7 +184,7 @@ class EditorController(QObject):
         if layer is None or layer.pixels is None or name not in BEAUTY_FILTERS:
             return
         func, kwargs = BEAUTY_FILTERS[name]
-        self._push(commands.FilterCommand(self.document, layer, func, name, **kwargs))
+        self._filter(layer, func, name, **kwargs)
 
     def heal_at(self, x: int, y: int, radius: int = 14):
         from ..imaging.beauty import heal
@@ -188,8 +195,35 @@ class EditorController(QObject):
         lx, ly = int(x) - layer.offset[0], int(y) - layer.offset[1]
         if not (0 <= lx < layer.width and 0 <= ly < layer.height):
             return
-        self._push(commands.FilterCommand(self.document, layer, heal, "Spot Removal",
-                                          cx=lx, cy=ly, radius=radius))
+        self._filter(layer, heal, "Spot Removal", cx=lx, cy=ly, radius=radius)
+
+    def _filter(self, layer, func, label, **kwargs):
+        if layer.width * layer.height < 1_000_000:
+            self._push(commands.FilterCommand(self.document, layer, func, label, **kwargs))
+            return
+        if self._processing is not None:
+            self.processing_error.emit("An image operation is still running. Please wait.")
+            return
+        from .workers import Job
+        pixels = layer.pixels
+        self._processing = (self._revision, self.document, layer, label)
+        job = Job(self._revision, lambda: func(pixels, **kwargs))
+        job.signals.done.connect(self._finish_processing)
+        self.processing_pool.start(job)
+
+    @Slot(int, object, object)
+    def _finish_processing(self, revision, result, error):
+        pending = self._processing
+        self._processing = None
+        if pending is None:
+            return
+        _, doc, layer, label = pending
+        if error:
+            self.processing_error.emit(str(error))
+        elif revision == self._revision and doc is self.document and not layer.locked:
+            self._push(commands._PixelSwapCommand(doc, layer, result, False, label))
+        else:
+            self.processing_error.emit("Image operation discarded because the document changed.")
 
     def delete_active_layer(self):
         layer = self._active()
@@ -227,7 +261,7 @@ class EditorController(QObject):
             return
         from ..core.document import new_id
         layers = [self.document.layer_by_id(i) for i in layer_ids]
-        layers = [l for l in layers if l is not None]
+        layers = [l for l in layers if l is not None and not l.locked]
         self._push(commands.GroupCommand(layers, new_id()))
 
     def ungroup_active(self):
@@ -235,6 +269,8 @@ class EditorController(QObject):
         if layer is None or layer.group is None or self.document is None:
             return
         members = [l for l in self.document.layers if l.group == layer.group]
+        if any(l.locked for l in members):
+            return
         self._push(commands.GroupCommand(members, None))
 
     def move_active_layer(self, x: int, y: int):
@@ -244,6 +280,8 @@ class EditorController(QObject):
         if layer.group is not None and self.document is not None:
             dx, dy = int(x) - layer.offset[0], int(y) - layer.offset[1]
             members = [l for l in self.document.layers if l.group == layer.group]
+            if any(l.locked for l in members):
+                return
             self._push(commands.MoveGroupCommand(members, dx, dy))
         else:
             self._push(commands.MoveLayerCommand(layer, (int(x), int(y))))
@@ -259,9 +297,8 @@ class EditorController(QObject):
         layer = self._active()
         if layer is None or layer.pixels is None:
             return
-        self._push(commands.FilterCommand(self.document, layer, replace_background,
-                                          "Replace Background",
-                                          new_color=color, tolerance=tolerance))
+        self._filter(layer, replace_background, "Replace Background",
+                     new_color=color, tolerance=tolerance)
 
     def make_print_sheet(self, photo_size_key: str, sheet_key: str, dpi: int = 300):
         """Build a new print-sheet document from the current composite."""
@@ -283,21 +320,25 @@ class EditorController(QObject):
 
     def undo(self):
         if self.history and self.history.can_undo():
+            self._revision += 1
             self.history.undo()
             self._dirty = True
             self.document_changed.emit()
 
     def redo(self):
         if self.history and self.history.can_redo():
+            self._revision += 1
             self.history.redo()
             self._dirty = True
             self.document_changed.emit()
 
     # ---- helpers ------------------------------------------------------
     def _active(self):
-        return self.document.active_layer if self.document else None
+        layer = self.document.active_layer if self.document else None
+        return layer if layer is not None and not layer.locked else None
 
     def _on_history_change(self):
+        self._dirty = True
         self.history_changed.emit()
 
     @property

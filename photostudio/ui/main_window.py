@@ -27,6 +27,11 @@ class MainWindow(QMainWindow):
         self.setWindowTitle(__app_name__)
         self.resize(1280, 820)
         self.controller = EditorController(self)
+        from .workers import RenderQueue
+        self.render_queue = RenderQueue(self)
+        self.render_queue.ready.connect(self._display_render)
+        self.render_queue.failed.connect(lambda msg: self.statusBar().showMessage(msg, 8000))
+        self._reset_render_view = False
 
         self._stack = QStackedWidget()
         self.setCentralWidget(self._stack)
@@ -173,6 +178,7 @@ class MainWindow(QMainWindow):
 
     def _wire(self):
         self.home.workspace_selected.connect(self.on_workspace)
+        self.controller.processing_error.connect(lambda msg: self.statusBar().showMessage(msg, 8000))
 
         self.controller.document_changed.connect(self._render)
         self.controller.document_opened.connect(self._on_document_opened)
@@ -236,7 +242,7 @@ class MainWindow(QMainWindow):
         keys = [t.key for t in templates.TEMPLATES]
         choice, ok = QInputDialog.getItem(self, "Templates", "Choose a template:",
                                           items, 0, False)
-        if ok and choice:
+        if ok and choice and self._confirm_replace():
             self.controller.open_template(keys[items.index(choice)])
 
     def on_pick_preset(self, kind: str):
@@ -248,6 +254,8 @@ class MainWindow(QMainWindow):
             "Social media preset:" if kind == "social" else "Graphic design preset:",
             labels, 0, False)
         if not ok:
+            return
+        if not self._confirm_replace():
             return
         preset = presets[labels.index(label)]
         bg = (255, 255, 255, 255)
@@ -264,7 +272,8 @@ class MainWindow(QMainWindow):
         h, ok = QInputDialog.getInt(self, "New Design", "Height (px):", 1080, 1, 20000)
         if not ok:
             return
-        self.controller.new_document(w, h)
+        if self._confirm_replace():
+            self.controller.new_document(w, h)
 
     def _on_heal_toggled(self, checked: bool):
         if checked:
@@ -297,6 +306,8 @@ class MainWindow(QMainWindow):
         if not ok:
             return
         pkey = passport.PHOTO_SIZES[labels.index(choice)].key
+        if not self._confirm_replace():
+            return
         self.controller.make_print_sheet(pkey, sheet_key, dpi=300)
         self.statusBar().showMessage("Print sheet created (300 DPI). Export via Passport → Export PDF.", 5000)
 
@@ -334,7 +345,7 @@ class MainWindow(QMainWindow):
 
     def on_open_image(self):
         path, _ = QFileDialog.getOpenFileName(self, "Open Image", "", IMAGE_FILTER)
-        if path:
+        if path and self._confirm_replace():
             try:
                 self.controller.open_image(path)
             except Exception as exc:  # noqa: BLE001
@@ -342,7 +353,7 @@ class MainWindow(QMainWindow):
 
     def on_open_project(self):
         path, _ = QFileDialog.getOpenFileName(self, "Open Project", "", PROJECT_FILTER)
-        if path:
+        if path and self._confirm_replace():
             try:
                 self.controller.open_project(path)
             except Exception as exc:  # noqa: BLE001
@@ -350,11 +361,12 @@ class MainWindow(QMainWindow):
 
     def on_save(self):
         if self.controller.project_path is None:
-            self.on_save_as()
+            return self.on_save_as()
         else:
             try:
                 self.controller.save_project()
                 self.statusBar().showMessage("Project saved", 3000)
+                return True
             except Exception as exc:  # noqa: BLE001
                 self._error("Could not save", exc)
 
@@ -368,6 +380,7 @@ class MainWindow(QMainWindow):
                 self.controller.save_project(path)
                 self.statusBar().showMessage("Project saved", 3000)
                 self._update_title()
+                return True
             except Exception as exc:  # noqa: BLE001
                 self._error("Could not save", exc)
 
@@ -427,10 +440,15 @@ class MainWindow(QMainWindow):
 
     def _render(self, reset_view: bool = False):
         use_adj = not (hasattr(self, "act_compare") and self.act_compare.isChecked())
-        pixels = self.controller.render(use_adjustments=use_adj)
-        if pixels is not None:
-            self.canvas.set_image(pixels, reset_view=reset_view)
+        if self.controller.document is not None:
+            self._reset_render_view |= reset_view
+            self.render_queue.request(self.controller.document, use_adj)
         self._update_actions()
+        self._update_title()
+
+    def _display_render(self, pixels):
+        self.canvas.set_image(pixels, reset_view=self._reset_render_view)
+        self._reset_render_view = False
 
     def _update_actions(self):
         has_doc = self.controller.document is not None
@@ -454,6 +472,26 @@ class MainWindow(QMainWindow):
 
     def _error(self, message: str, exc: Exception):
         QMessageBox.critical(self, "Error", f"{message}:\n{exc}")
+
+    def _confirm_replace(self):
+        if not self.controller.is_dirty:
+            return True
+        answer = QMessageBox.warning(
+            self, "Unsaved changes", "Save your changes before continuing?",
+            QMessageBox.StandardButton.Save | QMessageBox.StandardButton.Discard |
+            QMessageBox.StandardButton.Cancel, QMessageBox.StandardButton.Save)
+        if answer == QMessageBox.StandardButton.Save:
+            return bool(self.on_save())
+        return answer == QMessageBox.StandardButton.Discard
+
+    def closeEvent(self, event):
+        if self._confirm_replace():
+            self.render_queue.invalidate()
+            self.render_queue.pool.waitForDone()
+            self.controller.processing_pool.waitForDone()
+            event.accept()
+        else:
+            event.ignore()
 
     def keyPressEvent(self, event):
         if event.key() == Qt.Key.Key_Escape:

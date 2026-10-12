@@ -102,8 +102,10 @@ class LayersPanel(QWidget):
         item = self.list.item(row)
         if item:
             self.controller.document.active_layer_id = item.data(Qt.ItemDataRole.UserRole)
+            self.controller.document_changed.emit()
             active = self.controller.document.active_layer
             if active is not None:
                 self.opacity.blockSignals(True)
                 self.opacity.setValue(int(active.opacity * 100))
                 self.opacity.blockSignals(False)
+

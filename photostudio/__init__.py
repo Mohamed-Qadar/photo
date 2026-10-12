@@ -7,7 +7,7 @@ __app_name__ = "PhotoStudio"
 __author__ = "Eng. Mohamed Ibrahim Abdi"
 __author_title__ = "Computer Engineer"
 __author_specialization__ = "Natural Language Processing and Computer Vision"
-__contact_email__ = "mohaqadar280@gmail.com"
+__contact_email__ = "mohamedqadar280@gmail.com"
 __github_url__ = "https://github.com/Mohamed-Qadar/photo"
 __publisher__ = "Eng. Mohamed Ibrahim Abdi"
 

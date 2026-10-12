@@ -146,8 +146,8 @@ class CanvasView(QGraphicsView):
             self.point_clicked.emit(int(p.x()), int(p.y()))
             return
         if self._crop_mode and event.button() == Qt.MouseButton.LeftButton:
-            self._crop_origin = self.mapToScene(event.position().toPoint())
             self._clear_crop_item()
+            self._crop_origin = self.mapToScene(event.position().toPoint())
             self._crop_item = QGraphicsRectItem(QRectF(self._crop_origin, self._crop_origin))
             pen = QPen(QColor("#5b8cff"), 0)
             pen.setCosmetic(True)
