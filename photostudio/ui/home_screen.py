@@ -1,76 +1,120 @@
-"""Home landing screen with action cards."""
+"""Home landing screen: hero + workspace tiles.
+
+Tiles emit `workspace_selected(key)`. Tiles that are implemented are enabled;
+planned ones carry a clear "Soon" badge and are disabled (no fake buttons).
+Backgrounds are explicitly transparent so no dark rectangles appear behind text.
+"""
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import (QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QFrame, QGridLayout, QHBoxLayout, QLabel,
+                               QScrollArea, QVBoxLayout, QWidget)
+
+from .. import __version__
+
+# key, title, subtitle, implemented?
+TILES = [
+    ("new_design", "New Design", "Blank canvas at any size.", True),
+    ("photo_editor", "Photo Editor", "Open a photo to crop, adjust & export.", True),
+    ("social", "Social Media Designer", "Posts, stories, thumbnails with text & shapes.", True),
+    ("graphic", "Graphic Design", "Posters, flyers, cards, banners, logos.", True),
+    ("custom", "Custom Canvas", "Pick exact width, height and DPI.", True),
+    ("open_project", "Open Project", "Resume a saved .pstudio project.", True),
+    ("beauty", "Beauty Studio", "Portrait retouch — coming soon.", False),
+    ("passport", "Passport & ID Photo", "Biometric photos & print sheets — coming soon.", False),
+    ("templates", "Templates", "Editable starter templates — coming soon.", False),
+]
 
 
-class _Card(QFrame):
-    clicked = Signal()
+class Tile(QFrame):
+    clicked = Signal(str)
 
-    def __init__(self, title: str, subtitle: str, enabled: bool = True):
+    def __init__(self, key: str, title: str, subtitle: str, enabled: bool):
         super().__init__()
-        self.setObjectName("card")
-        self.setCursor(Qt.CursorShape.PointingHandCursor if enabled
-                       else Qt.CursorShape.ForbiddenCursor)
+        self.key = key
         self._enabled = enabled
-        layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 18, 18, 18)
+        self.setObjectName("tile")
+        self.setMinimumHeight(118)
+        self.setCursor(Qt.CursorShape.PointingHandCursor if enabled
+                       else Qt.CursorShape.ArrowCursor)
+        lay = QVBoxLayout(self)
+        lay.setContentsMargins(18, 16, 18, 16)
+        lay.setSpacing(6)
+
+        row = QHBoxLayout()
         t = QLabel(title)
-        t.setStyleSheet("font-size:16px; font-weight:600;")
-        s = QLabel(subtitle)
-        s.setObjectName("muted")
-        s.setWordWrap(True)
-        layout.addWidget(t)
-        layout.addWidget(s)
-        layout.addStretch(1)
+        t.setObjectName("tileTitle")
+        t.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        row.addWidget(t)
+        row.addStretch(1)
         if not enabled:
-            self.setStyleSheet("QFrame#card { opacity: 0.5; }")
+            badge = QLabel("Soon")
+            badge.setObjectName("badge")
+            row.addWidget(badge)
+        lay.addLayout(row)
+
+        s = QLabel(subtitle)
+        s.setObjectName("tileSub")
+        s.setWordWrap(True)
+        s.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        lay.addWidget(s)
+        lay.addStretch(1)
+        self.setProperty("enabled_tile", enabled)
 
     def mouseReleaseEvent(self, event):
         if self._enabled and event.button() == Qt.MouseButton.LeftButton:
-            self.clicked.emit()
+            self.clicked.emit(self.key)
         super().mouseReleaseEvent(event)
 
 
 class HomeScreen(QWidget):
-    new_project = Signal()
-    edit_photo = Signal()
-    open_project = Signal()
+    workspace_selected = Signal(str)
 
     def __init__(self):
         super().__init__()
-        root = QVBoxLayout(self)
-        root.setContentsMargins(48, 40, 48, 40)
-        root.setSpacing(6)
+        self.setObjectName("home")
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
 
-        title = QLabel("PhotoStudio")
-        title.setObjectName("title")
-        subtitle = QLabel("Offline photo & design studio — pick a starting point.")
-        subtitle.setObjectName("subtitle")
-        root.addWidget(title)
-        root.addWidget(subtitle)
-        root.addSpacing(24)
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        outer.addWidget(scroll)
+
+        content = QWidget()
+        content.setObjectName("homeContent")
+        scroll.setWidget(content)
+        root = QVBoxLayout(content)
+        root.setContentsMargins(56, 44, 56, 44)
+        root.setSpacing(8)
+
+        # Hero
+        hero = QLabel("PhotoStudio")
+        hero.setObjectName("hero")
+        tagline = QLabel("A complete offline creative studio — design, edit and export, "
+                         "no account and no internet required.")
+        tagline.setObjectName("heroSub")
+        tagline.setWordWrap(True)
+        root.addWidget(hero)
+        root.addWidget(tagline)
+        root.addSpacing(28)
+
+        start = QLabel("Start creating")
+        start.setObjectName("sectionTitle")
+        root.addWidget(start)
+        root.addSpacing(8)
 
         grid = QGridLayout()
         grid.setSpacing(16)
         root.addLayout(grid)
-
-        cards = [
-            ("New Project", "Start a blank canvas.", True, self.new_project),
-            ("Edit Photo", "Open an image to crop, adjust and export.", True, self.edit_photo),
-            ("Open Project", "Resume a saved .pstudio project.", True, self.open_project),
-            ("Beauty Studio", "Portrait retouch — coming in Phase 4.", False, None),
-            ("Social Media", "Post & story canvases — coming in Phase 3.", False, None),
-            ("Passport Photo", "Biometric & ID photos — coming in Phase 5.", False, None),
-        ]
-        for i, (t, s, enabled, signal) in enumerate(cards):
-            card = _Card(t, s, enabled)
-            if enabled and signal is not None:
-                card.clicked.connect(signal.emit)
-            grid.addWidget(card, i // 3, i % 3)
+        for i, (key, title, sub, enabled) in enumerate(TILES):
+            tile = Tile(key, title, sub, enabled)
+            if enabled:
+                tile.clicked.connect(self.workspace_selected.emit)
+            grid.addWidget(tile, i // 3, i % 3)
 
         root.addStretch(1)
-        note = QLabel("Disabled tiles are planned features and are clearly marked until implemented.")
-        note.setObjectName("muted")
-        root.addWidget(note)
+        foot = QLabel(f"Version {__version__} · Developed by Eng. Mohamed Ibrahim Abdi — "
+                      "Computer Engineer (NLP & Computer Vision)")
+        foot.setObjectName("homeFoot")
+        root.addWidget(foot)

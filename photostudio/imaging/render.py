@@ -1,0 +1,95 @@
+"""Render editable object layers (TEXT, SHAPE) to RGBA pixel arrays.
+
+Pure rendering from a spec dict; no Qt. Text uses a bundled/system TrueType font
+when available, falling back to Pillow's built-in bitmap font so rendering always
+works offline. Shapes are drawn with Pillow's ImageDraw.
+"""
+from __future__ import annotations
+
+from functools import lru_cache
+from pathlib import Path
+
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+_FONT_DIR = Path(__file__).resolve().parent.parent / "resources" / "fonts"
+
+
+@lru_cache(maxsize=32)
+def _load_font(size: int, bold: bool) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
+    # Prefer a bundled font (offline-safe), then a common system font, then default.
+    candidates = []
+    if _FONT_DIR.exists():
+        candidates += sorted(_FONT_DIR.glob("*.ttf"))
+    candidates += [Path("C:/Windows/Fonts/segoeuib.ttf" if bold
+                        else "C:/Windows/Fonts/segoeui.ttf"),
+                   Path("C:/Windows/Fonts/arial.ttf"),
+                   Path("DejaVuSans.ttf")]
+    for path in candidates:
+        try:
+            return ImageFont.truetype(str(path), size)
+        except Exception:
+            continue
+    return ImageFont.load_default()
+
+
+def render_text(spec: dict) -> np.ndarray:
+    w = max(1, int(spec.get("width", 1)))
+    h = max(1, int(spec.get("height", 1)))
+    text = str(spec.get("text", ""))
+    color = tuple(spec.get("color", [20, 20, 20, 255]))
+    align = spec.get("align", "center")
+    font = _load_font(int(spec.get("font_size", 48)), bool(spec.get("bold", False)))
+
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    # Multi-line aware placement.
+    try:
+        bbox = draw.multiline_textbbox((0, 0), text, font=font, align=align)
+        tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    except Exception:
+        tw, th = draw.textlength(text, font=font), int(spec.get("font_size", 48))
+    x = {"left": 0, "center": (w - tw) // 2, "right": w - tw}.get(align, (w - tw) // 2)
+    y = max(0, (h - th) // 2)
+    draw.multiline_text((x, y), text, fill=color, font=font, align=align)
+    return np.asarray(img, dtype=np.uint8).copy()
+
+
+def render_shape(spec: dict) -> np.ndarray:
+    w = max(1, int(spec.get("width", 1)))
+    h = max(1, int(spec.get("height", 1)))
+    shape = spec.get("shape", "rectangle")
+    fill = tuple(spec["fill"]) if spec.get("fill") else None
+    stroke = tuple(spec["stroke"]) if spec.get("stroke") else None
+    sw = int(spec.get("stroke_width", 0))
+
+    img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
+    pad = max(0, sw // 2)
+    box = (pad, pad, w - 1 - pad, h - 1 - pad)
+    if shape in ("rectangle", "rect"):
+        draw.rectangle(box, fill=fill, outline=stroke, width=sw)
+    elif shape in ("ellipse", "circle"):
+        draw.ellipse(box, fill=fill, outline=stroke, width=sw)
+    elif shape in ("rounded", "rounded_rect"):
+        r = int(min(w, h) * 0.18)
+        draw.rounded_rectangle(box, radius=r, fill=fill, outline=stroke, width=sw)
+    elif shape == "line":
+        draw.line((0, h // 2, w, h // 2), fill=fill or stroke or (0, 0, 0, 255),
+                  width=max(1, sw or 3))
+    elif shape == "triangle":
+        draw.polygon([(w // 2, pad), (pad, h - 1 - pad), (w - 1 - pad, h - 1 - pad)],
+                     fill=fill, outline=stroke)
+    else:
+        draw.rectangle(box, fill=fill, outline=stroke, width=sw)
+    return np.asarray(img, dtype=np.uint8).copy()
+
+
+def render_object(kind, spec: dict) -> np.ndarray:
+    """Dispatch by layer kind. `kind` is a LayerKind or its string value."""
+    k = getattr(kind, "value", kind)
+    if k == "text":
+        return render_text(spec)
+    if k == "shape":
+        return render_shape(spec)
+    raise ValueError(f"Cannot render object of kind {k!r}")

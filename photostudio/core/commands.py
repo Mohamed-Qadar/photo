@@ -105,6 +105,98 @@ class ResizeCommand(_PixelSwapCommand):
         super().__init__(document, layer, resized, resize_canvas=True, label="Resize")
 
 
+class AddLayerCommand(Command):
+    def __init__(self, document: Document, layer: Layer, index=None):
+        self.document = document
+        self.layer = layer
+        self.index = index
+        self.prev_active = document.active_layer_id
+        self.label = f"Add {layer.kind.value.capitalize()}"
+
+    def do(self) -> None:
+        self.document.add_layer(self.layer, self.index)
+
+    def undo(self) -> None:
+        self.document.remove_layer(self.layer.id)
+        self.document.active_layer_id = self.prev_active
+
+
+class RemoveLayerCommand(Command):
+    def __init__(self, document: Document, layer: Layer):
+        self.document = document
+        self.layer = layer
+        self.index = document.index_of(layer.id)
+        self.prev_active = document.active_layer_id
+        self.label = "Delete Layer"
+
+    def do(self) -> None:
+        self.document.remove_layer(self.layer.id)
+
+    def undo(self) -> None:
+        self.document.add_layer(self.layer, self.index)
+        self.document.active_layer_id = self.prev_active
+
+
+class MoveLayerCommand(Command):
+    """Move a layer by (dx, dy); coalesces during a drag."""
+
+    def __init__(self, layer: Layer, new_offset: tuple[int, int]):
+        self.layer = layer
+        self.old_offset = layer.offset
+        self.new_offset = new_offset
+        self.label = "Move Layer"
+
+    def do(self) -> None:
+        self.layer.offset = self.new_offset
+
+    def undo(self) -> None:
+        self.layer.offset = self.old_offset
+
+    def merge_with(self, other: "Command") -> bool:
+        if isinstance(other, MoveLayerCommand) and other.layer is self.layer:
+            self.new_offset = other.new_offset
+            self.layer.offset = self.new_offset
+            return True
+        return False
+
+
+class SetLayerLockCommand(Command):
+    def __init__(self, layer: Layer, locked: bool):
+        self.layer = layer
+        self.old = layer.locked
+        self.new = locked
+        self.label = "Lock Layer" if locked else "Unlock Layer"
+
+    def do(self) -> None:
+        self.layer.locked = self.new
+
+    def undo(self) -> None:
+        self.layer.locked = self.old
+
+
+class SetTextCommand(Command):
+    """Edit a text layer's string (coalesces while typing)."""
+
+    def __init__(self, layer: Layer, new_text: str):
+        self.layer = layer
+        self.old = layer.spec.get("text", "")
+        self.new = new_text
+        self.label = "Edit Text"
+
+    def do(self) -> None:
+        self.layer.spec["text"] = self.new
+
+    def undo(self) -> None:
+        self.layer.spec["text"] = self.old
+
+    def merge_with(self, other: "Command") -> bool:
+        if isinstance(other, SetTextCommand) and other.layer is self.layer:
+            self.new = other.new
+            self.layer.spec["text"] = self.new
+            return True
+        return False
+
+
 class SetLayerVisibilityCommand(Command):
     def __init__(self, layer: Layer, visible: bool):
         self.layer = layer

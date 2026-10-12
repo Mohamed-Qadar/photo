@@ -72,4 +72,25 @@ def stylesheet(tokens: dict[str, str]) -> str:
     }}
     QFrame#card:hover {{ border-color: {t['accent']}; }}
     QStatusBar {{ background: {t['bg_elevated']}; color: {t['text_muted']}; }}
+
+    /* ---- Home screen ---- */
+    QWidget#homeContent {{ background: {t['bg']}; }}
+    QScrollArea {{ background: {t['bg']}; border: none; }}
+    QLabel {{ background: transparent; }}
+    QLabel#hero {{ font-size: 40px; font-weight: 800; letter-spacing: 0.5px; }}
+    QLabel#heroSub {{ font-size: 15px; color: {t['text_muted']}; }}
+    QLabel#sectionTitle {{ font-size: 15px; font-weight: 700; color: {t['text_muted']}; }}
+    QLabel#homeFoot {{ color: {t['text_muted']}; font-size: 12px; }}
+    QFrame#tile {{
+        background: {t['bg_elevated']};
+        border: 1px solid {t['border']};
+        border-radius: 14px;
+    }}
+    QFrame#tile[enabled_tile="true"]:hover {{ border: 1px solid {t['accent']}; }}
+    QLabel#tileTitle {{ font-size: 17px; font-weight: 600; }}
+    QLabel#tileSub {{ color: {t['text_muted']}; font-size: 13px; }}
+    QLabel#badge {{
+        background: {t['border']}; color: {t['text_muted']};
+        border-radius: 8px; padding: 2px 8px; font-size: 11px; font-weight: 600;
+    }}
     """

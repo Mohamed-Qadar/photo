@@ -45,26 +45,37 @@ def blank_pixels(width: int, height: int) -> np.ndarray:
 
 @dataclass
 class Layer:
-    pixels: np.ndarray                      # H x W x 4 uint8 RGBA
+    """A layer in the shared document engine.
+
+    IMAGE layers carry raster ``pixels``. TEXT and SHAPE layers are *editable
+    objects*: they carry a ``spec`` dict describing the object and render to
+    pixels on demand (see ``render``), so their content stays re-editable and
+    round-trips through ``.pstudio`` without being flattened.
+    """
+    pixels: Optional[np.ndarray] = None     # H x W x 4 uint8 RGBA (IMAGE layers)
     name: str = "Layer"
     kind: LayerKind = LayerKind.IMAGE
     id: str = field(default_factory=new_id)
     offset: tuple[int, int] = (0, 0)        # (x, y) top-left placement on the canvas
     visible: bool = True
+    locked: bool = False
     opacity: float = 1.0                    # 0..1
     blend: BlendMode = BlendMode.NORMAL
     adjustments: dict[str, float] = field(default_factory=lambda: dict(ADJUSTMENT_DEFAULTS))
+    spec: dict = field(default_factory=dict)  # TEXT/SHAPE object definition
 
     def __post_init__(self) -> None:
-        self._validate_pixels(self.pixels)
-        # Ensure every known adjustment key exists so the UI can bind safely.
+        if self.kind == LayerKind.IMAGE:
+            self._validate_pixels(self.pixels)
+        elif not self.spec:
+            raise ValueError(f"{self.kind.value} layer requires a 'spec'")
         merged = dict(ADJUSTMENT_DEFAULTS)
         merged.update(self.adjustments or {})
         self.adjustments = merged
         self.opacity = float(np.clip(self.opacity, 0.0, 1.0))
 
     @staticmethod
-    def _validate_pixels(pixels: np.ndarray) -> None:
+    def _validate_pixels(pixels) -> None:
         if not isinstance(pixels, np.ndarray):
             raise TypeError("Layer.pixels must be a numpy ndarray")
         if pixels.ndim != 3 or pixels.shape[2] != 4:
@@ -73,12 +84,28 @@ class Layer:
             raise ValueError("Layer.pixels must be uint8")
 
     @property
+    def is_object(self) -> bool:
+        return self.kind in (LayerKind.TEXT, LayerKind.SHAPE)
+
+    @property
     def width(self) -> int:
-        return int(self.pixels.shape[1])
+        if self.pixels is not None:
+            return int(self.pixels.shape[1])
+        return int(self.spec.get("width", 0))
 
     @property
     def height(self) -> int:
-        return int(self.pixels.shape[0])
+        if self.pixels is not None:
+            return int(self.pixels.shape[0])
+        return int(self.spec.get("height", 0))
+
+    def render(self) -> np.ndarray:
+        """Return this layer's RGBA pixels, rendering object layers from spec."""
+        if self.kind == LayerKind.IMAGE:
+            return self.pixels
+        # Imported lazily to keep imaging optional for pure-model use.
+        from ..imaging.render import render_object
+        return render_object(self.kind, self.spec)
 
     def has_edits(self) -> bool:
         return any(abs(self.adjustments.get(k, d) - d) > 1e-9
@@ -86,15 +113,17 @@ class Layer:
 
     def copy(self) -> "Layer":
         return Layer(
-            pixels=self.pixels.copy(),
+            pixels=None if self.pixels is None else self.pixels.copy(),
             name=self.name,
             kind=self.kind,
             id=self.id,
             offset=self.offset,
             visible=self.visible,
+            locked=self.locked,
             opacity=self.opacity,
             blend=self.blend,
             adjustments=dict(self.adjustments),
+            spec=dict(self.spec),
         )
 
 
@@ -122,6 +151,37 @@ class Document:
         layer = Layer(pixels=pixels, name="Background")
         return cls(width=w, height=h, dpi=dpi, layers=[layer],
                    active_layer_id=layer.id, name=name)
+
+    @classmethod
+    def blank(cls, width: int, height: int, name: str = "Untitled",
+              background: Optional[tuple[int, int, int, int]] = (255, 255, 255, 255),
+              dpi: int = 72) -> "Document":
+        """A new design document with an optional solid background layer."""
+        layers: list[Layer] = []
+        if background is not None:
+            px = np.zeros((height, width, 4), dtype=np.uint8)
+            px[:] = background
+            layers.append(Layer(pixels=px, name="Background"))
+        return cls(width=width, height=height, dpi=dpi, layers=layers, name=name)
+
+    @staticmethod
+    def make_text_layer(text: str, *, width: int, height: int, font_size: int = 48,
+                        color=(20, 20, 20, 255), align: str = "center",
+                        bold: bool = False, name: Optional[str] = None) -> Layer:
+        spec = {"text": text, "width": int(width), "height": int(height),
+                "font_size": int(font_size), "color": list(color),
+                "align": align, "bold": bool(bold)}
+        return Layer(kind=LayerKind.TEXT, spec=spec, name=name or (text[:20] or "Text"))
+
+    @staticmethod
+    def make_shape_layer(shape: str, *, width: int, height: int,
+                         fill=(91, 140, 255, 255), stroke=None, stroke_width: int = 0,
+                         name: Optional[str] = None) -> Layer:
+        spec = {"shape": shape, "width": int(width), "height": int(height),
+                "fill": list(fill) if fill else None,
+                "stroke": list(stroke) if stroke else None,
+                "stroke_width": int(stroke_width)}
+        return Layer(kind=LayerKind.SHAPE, spec=spec, name=name or shape.capitalize())
 
     def layer_by_id(self, layer_id: str) -> Optional[Layer]:
         for layer in self.layers:

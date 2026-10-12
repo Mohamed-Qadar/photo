@@ -21,7 +21,7 @@ def _blend(base_rgb: np.ndarray, top_rgb: np.ndarray, mode: BlendMode) -> np.nda
 
 def _composite_layer(canvas: np.ndarray, layer: Layer) -> None:
     """Blend one layer into `canvas` (float32 RGBA, in place)."""
-    src = apply_adjustments(layer.pixels, layer.adjustments).astype(np.float32)
+    src = apply_adjustments(layer.render(), layer.adjustments).astype(np.float32)
     ox, oy = layer.offset
     ch, cw = canvas.shape[:2]
     lh, lw = src.shape[:2]

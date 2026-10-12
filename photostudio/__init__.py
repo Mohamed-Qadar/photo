@@ -1,6 +1,6 @@
 """PhotoStudio — offline-first Windows photo & design studio."""
 
-__version__ = "1.1.1"
+__version__ = "1.2.0"
 __app_name__ = "PhotoStudio"
 
 # Developer / attribution metadata (shown in About, Settings, installer, releases).

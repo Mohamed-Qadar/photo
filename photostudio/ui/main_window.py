@@ -48,6 +48,7 @@ class MainWindow(QMainWindow):
     def _build_docks(self):
         self.adjust_panel = AdjustmentsPanel(self.controller)
         self.layers_panel = LayersPanel(self.controller)
+        self._docks = []
         for widget, title, area in [
             (self.adjust_panel, "Properties", Qt.DockWidgetArea.RightDockWidgetArea),
             (self.layers_panel, "Layers", Qt.DockWidgetArea.RightDockWidgetArea),
@@ -56,6 +57,11 @@ class MainWindow(QMainWindow):
             dock.setWidget(widget)
             dock.setObjectName(f"dock_{title.lower()}")
             self.addDockWidget(area, dock)
+            self._docks.append(dock)
+
+    def _set_docks_visible(self, visible: bool):
+        for dock in self._docks:
+            dock.setVisible(visible)
 
     def _act(self, text, slot, shortcut=None, enabled=True):
         action = QAction(text, self)
@@ -99,6 +105,16 @@ class MainWindow(QMainWindow):
         m_image.addAction(self._act("Flip Vertical", lambda: self.controller.flip(False)))
         m_image.addAction(self._act("Resize…", self.on_resize))
 
+        m_insert = mb.addMenu("&Insert")
+        m_insert.addAction(self._act("Text", lambda: self.on_add_text(), "Ctrl+T"))
+        m_insert.addSeparator()
+        for label, shape in [("Rectangle", "rectangle"), ("Rounded Rectangle", "rounded"),
+                             ("Ellipse", "ellipse"), ("Triangle", "triangle"),
+                             ("Line", "line")]:
+            m_insert.addAction(self._act(label, lambda _=False, s=shape: self.controller.add_shape(s)))
+        m_insert.addSeparator()
+        m_insert.addAction(self._act("Delete Layer", self.controller.delete_active_layer, "Del"))
+
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act("Zoom In", self.canvas.zoom_in, "Ctrl+="))
         m_view.addAction(self._act("Zoom Out", self.canvas.zoom_out, "Ctrl+-"))
@@ -112,9 +128,7 @@ class MainWindow(QMainWindow):
         m_help.addAction(self._act("About", self.on_about))
 
     def _wire(self):
-        self.home.new_project.connect(self.on_new)
-        self.home.edit_photo.connect(self.on_open_image)
-        self.home.open_project.connect(self.on_open_project)
+        self.home.workspace_selected.connect(self.on_workspace)
 
         self.controller.document_changed.connect(self._render)
         self.controller.document_opened.connect(self._on_document_opened)
@@ -139,20 +153,56 @@ class MainWindow(QMainWindow):
 
     def _show_home(self):
         self._stack.setCurrentWidget(self.home)
+        self._set_docks_visible(False)          # no empty panels on the home screen
+        self.menuBar().setVisible(True)
         self._update_actions()
 
     def _show_canvas(self):
         self._stack.setCurrentWidget(self.canvas)
+        self._set_docks_visible(True)
+
+    # ---- workspace routing -------------------------------------------
+    def on_workspace(self, key: str):
+        if key in ("new_design", "custom"):
+            self.on_new()
+        elif key == "photo_editor":
+            self.on_open_image()
+        elif key == "open_project":
+            self.on_open_project()
+        elif key in ("social", "graphic"):
+            self.on_pick_preset(key)
+
+    def on_pick_preset(self, kind: str):
+        from ..core.presets import SOCIAL_PRESETS, GRAPHIC_PRESETS
+        presets = SOCIAL_PRESETS if kind == "social" else GRAPHIC_PRESETS
+        labels = [p.label for p in presets]
+        label, ok = QInputDialog.getItem(
+            self, "Choose a canvas",
+            "Social media preset:" if kind == "social" else "Graphic design preset:",
+            labels, 0, False)
+        if not ok:
+            return
+        preset = presets[labels.index(label)]
+        bg = (255, 255, 255, 255)
+        self.controller.new_document(preset.width, preset.height, name=preset.label,
+                                     background=bg)
+        if self.controller.document:
+            self.controller.document.dpi = preset.dpi
 
     # ---- actions ------------------------------------------------------
     def on_new(self):
-        w, ok = QInputDialog.getInt(self, "New Project", "Width (px):", 1200, 1, 20000)
+        w, ok = QInputDialog.getInt(self, "New Design", "Width (px):", 1080, 1, 20000)
         if not ok:
             return
-        h, ok = QInputDialog.getInt(self, "New Project", "Height (px):", 800, 1, 20000)
+        h, ok = QInputDialog.getInt(self, "New Design", "Height (px):", 1080, 1, 20000)
         if not ok:
             return
         self.controller.new_document(w, h)
+
+    def on_add_text(self):
+        text, ok = QInputDialog.getText(self, "Add Text", "Text:", text="Your text")
+        if ok and text:
+            self.controller.add_text(text)
 
     def on_open_image(self):
         path, _ = QFileDialog.getOpenFileName(self, "Open Image", "", IMAGE_FILTER)

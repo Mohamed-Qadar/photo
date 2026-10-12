@@ -2,8 +2,8 @@
 # Shown on the EXE's Properties -> Details tab.
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 1, 1, 0),
-    prodvers=(1, 1, 1, 0),
+    filevers=(1, 2, 0, 0),
+    prodvers=(1, 2, 0, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -19,12 +19,12 @@ VSVersionInfo(
           [
             StringStruct(u'CompanyName', u'Eng. Mohamed Ibrahim Abdi'),
             StringStruct(u'FileDescription', u'PhotoStudio - offline-first photo & design studio'),
-            StringStruct(u'FileVersion', u'1.1.1.0'),
+            StringStruct(u'FileVersion', u'1.2.0.0'),
             StringStruct(u'InternalName', u'PhotoStudio'),
             StringStruct(u'LegalCopyright', u'(c) Eng. Mohamed Ibrahim Abdi. Developed by Eng. Mohamed Ibrahim Abdi - Computer Engineer (NLP & Computer Vision).'),
             StringStruct(u'OriginalFilename', u'PhotoStudio.exe'),
             StringStruct(u'ProductName', u'PhotoStudio'),
-            StringStruct(u'ProductVersion', u'1.1.1.0')
+            StringStruct(u'ProductVersion', u'1.2.0.0')
           ]
         )
       ]

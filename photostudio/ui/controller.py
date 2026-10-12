@@ -41,10 +41,9 @@ class EditorController(QObject):
         self.document_changed.emit()
         self.history_changed.emit()
 
-    def new_document(self, width: int, height: int, name: str = "Untitled"):
-        from ..core.document import Document as Doc, Layer, blank_pixels
-        layer = Layer(pixels=blank_pixels(width, height), name="Background")
-        self._attach(Doc(width=width, height=height, layers=[layer], name=name))
+    def new_document(self, width: int, height: int, name: str = "Untitled",
+                     background=(255, 255, 255, 255)):
+        self._attach(Document.blank(width, height, name=name, background=background))
 
     def open_image(self, path: str | Path):
         pixels = img_io.load_image(path)
@@ -114,6 +113,43 @@ class EditorController(QObject):
         if layer is None:
             return
         self._push(commands.ResizeCommand(self.document, layer, width, height))
+
+    def add_text(self, text: str = "Double-click to edit", font_size: int = 48):
+        if self.document is None:
+            return
+        w = min(self.document.width, max(200, len(text) * font_size // 2))
+        layer = Document.make_text_layer(text, width=w, height=font_size * 2,
+                                         font_size=font_size)
+        layer.offset = (max(0, (self.document.width - w) // 2),
+                        max(0, (self.document.height - font_size * 2) // 2))
+        self._push(commands.AddLayerCommand(self.document, layer))
+
+    def add_shape(self, shape: str = "rectangle"):
+        if self.document is None:
+            return
+        size = max(40, min(self.document.width, self.document.height) // 3)
+        layer = Document.make_shape_layer(shape, width=size, height=size)
+        layer.offset = (max(0, (self.document.width - size) // 2),
+                        max(0, (self.document.height - size) // 2))
+        self._push(commands.AddLayerCommand(self.document, layer))
+
+    def delete_active_layer(self):
+        layer = self._active()
+        if layer is None or self.document is None:
+            return
+        self._push(commands.RemoveLayerCommand(self.document, layer))
+
+    def move_active_layer(self, x: int, y: int):
+        layer = self._active()
+        if layer is None:
+            return
+        self._push(commands.MoveLayerCommand(layer, (int(x), int(y))))
+
+    def set_text(self, text: str):
+        layer = self._active()
+        if layer is None or layer.kind.value != "text":
+            return
+        self._push(commands.SetTextCommand(layer, text))
 
     def undo(self):
         if self.history and self.history.can_undo():

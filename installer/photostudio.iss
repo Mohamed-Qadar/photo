@@ -4,7 +4,7 @@
 ; No administrator privileges required (installs per-user).
 
 #define AppName        "PhotoStudio"
-#define AppVersion      "1.1.1"
+#define AppVersion      "1.2.0"
 #define AppPublisher    "Eng. Mohamed Ibrahim Abdi"
 #define AppURL          "https://github.com/Mohamed-Qadar/photo"
 #define AppExe          "PhotoStudio.exe"

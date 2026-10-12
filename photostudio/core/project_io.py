@@ -52,19 +52,25 @@ def save_project(document: Document, path: str | Path) -> None:
     }
     with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED) as zf:
         for layer in document.layers:
-            data_path = f"layers/{layer.id}.png"
-            manifest["layers"].append({
+            entry = {
                 "id": layer.id,
                 "name": layer.name,
                 "kind": layer.kind.value,
                 "offset": list(layer.offset),
                 "visible": layer.visible,
+                "locked": layer.locked,
                 "opacity": layer.opacity,
                 "blend": layer.blend.value,
                 "adjustments": layer.adjustments,
-                "data": data_path,
-            })
-            zf.writestr(data_path, _pixels_to_png_bytes(layer.pixels))
+            }
+            if layer.is_object:
+                # Editable object: store its spec, not flattened pixels.
+                entry["spec"] = layer.spec
+            else:
+                data_path = f"layers/{layer.id}.png"
+                entry["data"] = data_path
+                zf.writestr(data_path, _pixels_to_png_bytes(layer.pixels))
+            manifest["layers"].append(entry)
         try:
             thumb = composite(document)
             zf.writestr("thumbnail.png", _pixels_to_png_bytes(_thumb(thumb)))
@@ -90,17 +96,21 @@ def load_project(path: str | Path) -> Document:
                 f"(this build supports up to {FORMAT_VERSION})")
         layers: list[Layer] = []
         for entry in manifest["layers"]:
-            pixels = _png_bytes_to_pixels(zf.read(entry["data"]))
+            kind = LayerKind(entry.get("kind", "image"))
+            is_object = kind in (LayerKind.TEXT, LayerKind.SHAPE)
+            pixels = None if is_object else _png_bytes_to_pixels(zf.read(entry["data"]))
             layers.append(Layer(
                 pixels=pixels,
                 name=entry.get("name", "Layer"),
-                kind=LayerKind(entry.get("kind", "image")),
+                kind=kind,
                 id=entry["id"],
                 offset=tuple(entry.get("offset", (0, 0))),
                 visible=bool(entry.get("visible", True)),
+                locked=bool(entry.get("locked", False)),
                 opacity=float(entry.get("opacity", 1.0)),
                 blend=BlendMode(entry.get("blend", "normal")),
                 adjustments=dict(entry.get("adjustments", {})),
+                spec=dict(entry.get("spec", {})),
             ))
     return Document(
         width=int(manifest["width"]),

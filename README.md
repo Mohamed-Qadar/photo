@@ -21,29 +21,32 @@ native `.pstudio` project format.
 
 ### Implemented (working today)
 
-- Create a new project, open an image (JPG / PNG / WebP / TIFF / BMP), or reopen a `.pstudio` project
-- Zoomable / pannable canvas (mouse-wheel zoom, hand-drag pan, fit-to-window)
-- Crop (drag on canvas), rotate 90° CW/CCW, flip horizontal/vertical, resize
-- Non-destructive brightness & contrast adjustments (stored as layer parameters)
-- Full undo / redo, with slider drags coalesced into single steps
-- Layer list with show/hide; Properties & Layers side panels
-- Save / open native **`.pstudio`** projects (versioned; preserves editable content, never flattens)
-- Export to **PNG** and **JPG**, matching the editor preview
-- Dark (default) and light themes
-- Settings dialog (General + About) and an About window
+- **Shared design engine** used by every workspace: raster image layers **plus editable text and
+  vector shape objects** (rectangle, rounded, ellipse, triangle, line), each with offset, opacity,
+  visibility, locking and blend mode.
+- **New Design / Custom Canvas** — blank canvas at any size, add editable text and shapes.
+- **Photo Editor** — open an image (JPG / PNG / WebP / TIFF / BMP), zoom/pan, crop (drag), rotate
+  90° CW/CCW, flip H/V, resize, non-destructive brightness & contrast.
+- **Social Media Designer** — real canvas presets (Instagram post/portrait/story, Facebook
+  post/cover, YouTube thumbnail, TikTok, WhatsApp Status) using the shared engine.
+- **Graphic Design** — preset canvases (A3/A4 poster, flyer, business card, banner, logo) at correct
+  DPI, with text and shapes.
+- Full **undo / redo** (slider, move and text edits coalesce into single steps).
+- Save / open native **`.pstudio`** projects — text & shapes round-trip **editable**, never flattened.
+- Export to **PNG** and **JPG**, matching the editor preview.
+- Redesigned **home screen** (hero + workspace tiles, no empty panels) and a cleaner editor shell;
+  dark (default) and light themes; Settings (General + About) and About window.
 
-### Planned (not yet implemented — shown disabled in the app)
+### Planned (clearly marked "Soon" in the app — not yet functional)
 
-- Beauty & portrait studio (skin smoothing, blemish/red-eye, teeth/eye, portrait lighting)
-- AI tools (background removal, object removal, subject-aware crop) via local ONNX models
-- Social-media design studio (post/story/thumbnail canvases, text, shapes, stickers, templates)
-- Advanced typography & graphic-design tools, SVG import/export
-- Passport & ID photo studio (country presets, print sheets 10×15 / A4, real DPI, PDF export)
-- Full adjustment set (exposure, saturation/vibrance, white balance, curves, sharpen, denoise, …),
-  histogram, presets, before/after
-- Autosave & crash recovery, batch export
+- **Beauty Studio** — skin smoothing, spot removal, portrait lighting, background blur, before/after.
+- **Passport & ID Photo** — face guides, background replacement, 10×15 / A4 print sheets, PDF export.
+- **Templates** — 20+ bundled editable starter templates (incl. Somali small-business examples).
+- Richer adjustments (saturation, exposure, temperature, sharpen, blur, grayscale, filters),
+  on-canvas transform handles & drag, layer thumbnails, masks, SVG import/export, autosave,
+  localization (Somali).
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) §10 for the full phase roadmap.
+See [ARCHITECTURE.md](ARCHITECTURE.md) and the milestone plan for details.
 
 ## Screenshots
 
@@ -133,6 +136,11 @@ Processing and Computer Vision.**
 
 ## Version history
 
+- **1.2.0** (in development) — Milestone A: shared design engine with editable **text & shape**
+  object layers (render, composite, `.pstudio` persistence, undoable add/move/edit/lock); redesigned
+  home screen (hero + tiles, no empty panels / dark rectangles); Social Media & Graphic Design
+  workspaces backed by the shared engine with real canvas presets; Insert menu (text/shapes);
+  docks hidden on the home screen. 36 automated tests passing.
 - **1.1.1** — Project identity & Windows distribution setup: app version/attribution, original app
   icon, PyInstaller spec with EXE metadata, Inno Setup installer, GitHub Actions Windows build
   pipeline (tests → build → installer → checksum → artifact, pre-release on tags), full README.
