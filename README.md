@@ -47,13 +47,17 @@ native `.pstudio` project format.
   approximate **background blur**, and **spot/blemish removal** (click to heal); all offline,
   identity-preserving, with before/after compare.
 
-### Planned (clearly marked "Soon" in the app — not yet functional)
+- **Passport & ID Photo** — example photo-size presets, **background replacement** (plain
+  backgrounds), **face-alignment guides**, **10×15 cm & A4 print sheets** with accurate DPI and
+  multiple-photo arrangement, and **PDF export**. *Sizes are layout examples only — not official
+  biometric requirements; verify the exact spec with the relevant authority. No acceptance is
+  guaranteed.*
 
-- **Passport & ID Photo** — face guides, background replacement, 10×15 / A4 print sheets, PDF export.
-- **Templates** — 20+ bundled editable starter templates (incl. Somali small-business examples).
-- Richer adjustments (saturation, exposure, temperature, sharpen, blur, grayscale, filters),
-  on-canvas transform handles & drag, layer thumbnails, masks, SVG import/export, autosave,
-  localization (Somali).
+### Planned / in progress
+
+- On-canvas transform handles & direct drag, marquee multi-select, layer thumbnails, masks &
+  adjustment layers, autosave/crash recovery, batch export, Somali localization, and optional
+  on-device AI (background removal) — subject to model licensing.
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) and the milestone plan for details.
 
@@ -145,7 +149,9 @@ Processing and Computer Vision.**
 
 ## Version history
 
-- **1.2.0** (in development) — Milestone E: Beauty Studio — skin smoothing (bilateral), portrait
+- **1.2.0** (in development) — Milestone F: Passport & ID — example size presets, background
+  replacement, face guides, 10×15/A4 print sheets with accurate DPI & multi-photo layout, PDF export
+  (sizes are examples, not official specs). Milestone E: Beauty Studio — skin smoothing (bilateral), portrait
   enhance, background blur, click-to-heal spot removal (OpenCV, offline). Milestone D:
   align-to-canvas, snapping, grouping + group-move, layer
   reorder/duplicate/opacity/lock, editable typography, SVG import (QtSvg), richer Layers panel,

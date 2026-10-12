@@ -133,5 +133,8 @@ def export_document(document: Document, path: str | Path, fmt: str = "png",
         img_io.save_png(flat, path, keep_alpha=keep_alpha)
     elif fmt in ("jpg", "jpeg"):
         img_io.save_jpg(flat, path, quality=quality)
+    elif fmt == "pdf":
+        from .passport import export_pdf
+        export_pdf(flat, path, dpi=document.dpi or 300)
     else:
         raise ValueError(f"Unsupported export format: {fmt!r}")

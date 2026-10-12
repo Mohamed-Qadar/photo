@@ -144,6 +144,16 @@ class MainWindow(QMainWindow):
         self.act_heal.toggled.connect(self._on_heal_toggled)
         m_beauty.addAction(self.act_heal)
 
+        m_passport = mb.addMenu("&Passport")
+        m_passport.addAction(self._act("Replace Background…", self.on_replace_bg))
+        m_passport.addAction(self._act("Create 10×15 cm Sheet", lambda: self.on_make_sheet("10x15")))
+        m_passport.addAction(self._act("Create A4 Sheet", lambda: self.on_make_sheet("a4")))
+        m_passport.addAction(self._act("Export PDF…", self.on_export_pdf))
+        self.act_guides = QAction("Show Face Guides", self)
+        self.act_guides.setCheckable(True)
+        self.act_guides.toggled.connect(self.canvas.set_face_guides)
+        m_passport.addAction(self.act_guides)
+
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act("Zoom In", self.canvas.zoom_in, "Ctrl+="))
         m_view.addAction(self._act("Zoom Out", self.canvas.zoom_out, "Ctrl+-"))
@@ -213,6 +223,12 @@ class MainWindow(QMainWindow):
             if self.controller.document is not None:
                 self.statusBar().showMessage(
                     "Beauty Studio: use the Beauty menu (smoothing, enhance, blur, spot removal)", 6000)
+        elif key == "passport":
+            self.on_open_image()
+            if self.controller.document is not None:
+                self.statusBar().showMessage(
+                    "Passport: Passport menu — replace background, create sheet, export PDF. "
+                    "Sizes are examples; verify official requirements.", 8000)
 
     def on_pick_template(self):
         from ..core import templates
@@ -261,6 +277,41 @@ class MainWindow(QMainWindow):
         if getattr(self, "act_heal", None) and self.act_heal.isChecked():
             self.controller.heal_at(x, y)
             self.canvas.begin_point_tool()  # stay in heal mode for multiple clicks
+
+    def on_replace_bg(self):
+        from PySide6.QtWidgets import QColorDialog
+        if self.controller.document is None:
+            return
+        col = QColorDialog.getColor(parent=self, title="Background colour")
+        if col.isValid():
+            self.controller.replace_background((col.red(), col.green(), col.blue()))
+
+    def on_make_sheet(self, sheet_key: str):
+        from ..core import passport
+        if self.controller.document is None:
+            return
+        labels = [p.label for p in passport.PHOTO_SIZES]
+        choice, ok = QInputDialog.getItem(self, "Photo size",
+                                          "Photo size (example sizes — verify official spec):",
+                                          labels, 0, False)
+        if not ok:
+            return
+        pkey = passport.PHOTO_SIZES[labels.index(choice)].key
+        self.controller.make_print_sheet(pkey, sheet_key, dpi=300)
+        self.statusBar().showMessage("Print sheet created (300 DPI). Export via Passport → Export PDF.", 5000)
+
+    def on_export_pdf(self):
+        if self.controller.document is None:
+            return
+        path, _ = QFileDialog.getSaveFileName(self, "Export PDF", "photo.pdf", "PDF (*.pdf)")
+        if path:
+            try:
+                if not path.lower().endswith(".pdf"):
+                    path += ".pdf"
+                self.controller.export_pdf(path)
+                self.statusBar().showMessage(f"Exported {Path(path).name}", 3000)
+            except Exception as exc:  # noqa: BLE001
+                self._error("Could not export PDF", exc)
 
     def on_import_svg(self):
         if self.controller.document is None:

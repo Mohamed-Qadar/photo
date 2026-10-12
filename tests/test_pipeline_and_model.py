@@ -46,5 +46,7 @@ def test_core_and_imaging_have_no_qt_imports():
             src = module.__file__
             with open(src, encoding="utf-8") as fh:
                 text = fh.read()
+            # The real architectural boundary: no Qt/UI imports in core or imaging.
             assert "PySide6" not in text, f"{src} imports PySide6"
-            assert "import cv2" not in text or pkg is imaging_pkg
+            assert "from ..ui" not in text and "import ui" not in text, \
+                f"{src} imports the UI layer"

@@ -254,6 +254,33 @@ class EditorController(QObject):
             return
         self._push(commands.SetTextCommand(layer, text))
 
+    def replace_background(self, color=(255, 255, 255), tolerance: int = 40):
+        from ..core.passport import replace_background
+        layer = self._active()
+        if layer is None or layer.pixels is None:
+            return
+        self._push(commands.FilterCommand(self.document, layer, replace_background,
+                                          "Replace Background",
+                                          new_color=color, tolerance=tolerance))
+
+    def make_print_sheet(self, photo_size_key: str, sheet_key: str, dpi: int = 300):
+        """Build a new print-sheet document from the current composite."""
+        from ..core import passport
+        if self.document is None:
+            return
+        photo = composite(self.document)
+        psize = next(p for p in passport.PHOTO_SIZES if p.key == photo_size_key)
+        sheet = next(s for s in passport.SHEET_SIZES if s.key == sheet_key)
+        sheet_px = passport.build_print_sheet(photo, psize.width_mm, psize.height_mm,
+                                              sheet, dpi=dpi)
+        doc = Document.from_image(sheet_px, name=f"Sheet {sheet.key}", dpi=dpi)
+        self._attach(doc)
+
+    def export_pdf(self, path: str | Path):
+        if self.document is None:
+            return
+        project_io.export_document(self.document, path, fmt="pdf")
+
     def undo(self):
         if self.history and self.history.can_undo():
             self.history.undo()

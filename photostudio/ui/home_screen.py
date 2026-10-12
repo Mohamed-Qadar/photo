@@ -22,7 +22,7 @@ TILES = [
     ("open_project", "Open Project", "Resume a saved .pstudio project.", True),
     ("templates", "Templates", "20+ editable offline starter designs.", True),
     ("beauty", "Beauty Studio", "Skin smoothing, spot removal, background blur.", True),
-    ("passport", "Passport & ID Photo", "Biometric photos & print sheets — coming soon.", False),
+    ("passport", "Passport & ID Photo", "Sizes, background swap, print sheets, PDF.", True),
 ]
 
 

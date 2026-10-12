@@ -90,6 +90,16 @@ def main() -> int:
     c.heal_at(60, 60, 10)
     assert c.render() is not None
 
+    # Passport flow: open image, replace background, make sheet, export PDF.
+    c._attach(Document.from_image(np.full((600, 480, 4), 180, np.uint8), name="id"))
+    c.replace_background((255, 255, 255))
+    c.make_print_sheet("35x45", "10x15", dpi=150)
+    assert c.document is not None and c.document.name.startswith("Sheet")
+    with tempfile.TemporaryDirectory() as d:
+        pdf = Path(d) / "sheet.pdf"
+        c.export_pdf(pdf)
+        assert pdf.exists()
+
     # Template.
     c.open_template("biz_sale")
     assert c.document is not None and len(c.document.layers) >= 3
