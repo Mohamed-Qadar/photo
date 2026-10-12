@@ -1,4 +1,5 @@
 import numpy as np
+from PySide6.QtTest import QTest
 from PySide6.QtCore import Qt
 from photostudio.ui.main_window import MainWindow
 from photostudio.core.pipeline import composite
@@ -90,4 +91,25 @@ def test_locked_controls_and_reorder_refused(qtbot):
     assert layer.name != "Forbidden"
     c.set_locked(layer.id, False)
     assert win.adjust_panel.isEnabled()
+    finish(win)
+
+
+def test_layer_mouse_drag_reorders_and_undo(qtbot):
+    win = window(qtbot)
+    win.layers_panel.list.setMinimumHeight(180)
+    win.resize(1280, 1000)
+    win.show()
+    QTest.qWait(20)
+    view = win.layers_panel.list
+    old = [l.id for l in win.controller.document.layers]
+    start = view.visualItemRect(view.item(0)).center()
+    target = view.visualItemRect(view.item(1))
+    end = target.bottomLeft()
+    end.setX(start.x())
+    QTest.mousePress(view.viewport(), Qt.MouseButton.LeftButton, pos=start)
+    QTest.mouseMove(view.viewport(), end)
+    QTest.mouseRelease(view.viewport(), Qt.MouseButton.LeftButton, pos=end)
+    assert [l.id for l in win.controller.document.layers] == [old[0], old[2], old[1]]
+    win.controller.undo()
+    assert [l.id for l in win.controller.document.layers] == old
     finish(win)

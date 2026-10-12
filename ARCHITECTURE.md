@@ -14,9 +14,13 @@ NumPy, Pillow and OpenCV. No server, account or network is required to edit.
 - `imaging/`: Qt-free adjustments, filters, portrait processing, rendering and IO.
 - `ui/controller.py`: editing intents, locking, history, dirty state and large filter jobs.
 - `ui/workers.py`: bounded background render queue and snapshot isolation.
-- `ui/canvas.py`: zoom, pan, crop and face guides.
+- `ui/canvas.py`: selection, move/resize/rotation gestures, snapping, pan, crop and guides.
 - `ui/main_window.py`: workspace routing, menus, docks, unsaved-change protection.
-- `ui/panels/`: layer list, adjustments and text properties.
+- `ui/panels/`: shared layer selection, thumbnails, drag ordering, typography and object properties.
+- `ui/i18n.py`, `settings_dialog.py`: offline English/Somali translation and persisted settings.
+- `core/recovery.py`, `ui/autosave.py`: isolated atomic recovery snapshots.
+- `ui/file_jobs.py`: worker-backed file operations with modal progress and a live event loop.
+- `photostudio/smoke.py`: source and packaged workflow checks, optional screenshots.
 - `packaging/`, `installer/`, `.github/workflows/`: Windows build and test artifacts.
 
 ## Invariants
@@ -36,7 +40,9 @@ read older manifests with optional fields omitted.
 ## Verification and roadmap
 
 Run `python -m pytest` and `python tool/smoke_test.py`. UI tests use Qt offscreen.
-The historical first-delivery report is in `docs/PHASE_1_REPORT.md`; ongoing changes
-are recorded in `docs/DEVELOPMENT.md`. Interactive object transforms, richer layer
-properties, localization, recovery and performance hardening follow the baseline
-corrections. Claims about implemented behavior must follow the code and tests.
+The historical first-delivery report is in `docs/PHASE_1_REPORT.md`; implemented phases
+are recorded in `docs/DEVELOPMENT.md`. Previews use a 1600-pixel proxy positioned in
+full document coordinates. Export composites at full resolution in row tiles. Image
+and canvas size is capped at 40 megapixels. Autosave skips active mouse gestures.
+Native saves replace files atomically. New layer transform fields are optional when
+reading old manifests. Masks, adjustment layers and batch export remain future work.

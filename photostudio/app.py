@@ -14,6 +14,9 @@ ICON_PATH = Path(__file__).resolve().parent / "resources" / "icon.ico"
 
 
 def main() -> int:
+    if "--smoke-test" in sys.argv:
+        from .smoke import main as smoke_main
+        return smoke_main()
     app = QApplication(sys.argv)
     app.setApplicationName(__app_name__)
     app.setApplicationVersion(__version__)

@@ -65,6 +65,7 @@ class AdjustmentsPanel(QWidget):
         layout.setSpacing(6)
 
         title = QLabel(tr("Adjustments"))
+        self.adjust_title = title
         title.setStyleSheet("font-weight:600;")
         layout.addWidget(title)
 
@@ -94,6 +95,9 @@ class AdjustmentsPanel(QWidget):
         self.snap_btn.clicked.connect(self._snap)
         layout.addWidget(self.snap_btn)
         self.font_family = QFontComboBox()
+        self.font_family.setToolTip(tr("Font family"))
+        self.font_family.setMinimumContentsLength(16)
+        self.font_family.setSizeAdjustPolicy(QComboBox.SizeAdjustPolicy.AdjustToMinimumContentsLengthWithIcon)
         self.font_family.currentFontChanged.connect(lambda f: controller.set_text_property("font_family", f.family()))
         layout.addWidget(self.font_family)
         self.bold = QCheckBox(tr("Bold"))
@@ -127,6 +131,12 @@ class AdjustmentsPanel(QWidget):
         gradient = QPushButton(tr("Gradient fill…"))
         gradient.clicked.connect(self._gradient)
         shape_layout.addWidget(gradient)
+        self.gradient_angle = QSpinBox()
+        self.gradient_angle.setRange(0, 360)
+        self.gradient_angle.setPrefix(tr("Gradient angle: "))
+        self.gradient_angle.setKeyboardTracking(False)
+        self.gradient_angle.valueChanged.connect(self._gradient_angle)
+        shape_layout.addWidget(self.gradient_angle)
         layout.addWidget(self.shape_group)
         transform = QGroupBox(tr("Transform"))
         form = QFormLayout(transform)
@@ -144,11 +154,14 @@ class AdjustmentsPanel(QWidget):
         align_row = QHBoxLayout()
         for title, where in [("←", "left"), ("↔", "hcenter"), ("→", "right"), ("↑", "top"), ("↕", "vcenter"), ("↓", "bottom")]:
             button = QPushButton(tr(title))
+            button.setFixedWidth(32)
+            button.setStyleSheet("padding:4px;")
             button.setToolTip(tr("Align " + where))
             button.clicked.connect(lambda _=False, w=where: controller.align_active(w))
             align_row.addWidget(button)
         layout.addLayout(align_row)
         beauty = QGroupBox(tr("Portrait tools"))
+        self.beauty_group = beauty
         beauty_layout = QVBoxLayout(beauty)
         self.beauty_strength = QSlider(Qt.Orientation.Horizontal)
         self.beauty_strength.setRange(0, 100)
@@ -181,12 +194,19 @@ class AdjustmentsPanel(QWidget):
             self.controller.set_object_property(key, [c.red(), c.green(), c.blue(), c.alpha()])
 
     def _gradient(self):
-        a = QColorDialog.getColor(parent=self, title="Gradient start")
+        a = QColorDialog.getColor(parent=self, title=tr("Gradient start"))
         if not a.isValid(): return
-        b = QColorDialog.getColor(parent=self, title="Gradient end")
+        b = QColorDialog.getColor(parent=self, title=tr("Gradient end"))
         if not b.isValid(): return
-        self.controller.set_object_property("gradient", {"angle": 90, "stops": [
+        self.controller.set_object_property("gradient", {"angle": self.gradient_angle.value(), "stops": [
             [0, [a.red(), a.green(), a.blue(), 255]], [1, [b.red(), b.green(), b.blue(), 255]]]})
+
+    def _gradient_angle(self, value):
+        layer = self.controller._active()
+        if layer and layer.spec.get("gradient"):
+            gradient = dict(layer.spec["gradient"])
+            gradient["angle"] = value
+            self.controller.set_object_property("gradient", gradient)
 
     def _text_color(self):
         c = QColorDialog.getColor(parent=self)
@@ -209,6 +229,12 @@ class AdjustmentsPanel(QWidget):
         layer = self.controller.document.active_layer if self.controller.document else None
         enabled = layer is not None and not layer.locked
         self.setEnabled(enabled)
+        raster = layer is not None and layer.pixels is not None
+        self.adjust_title.setVisible(raster)
+        self.reset_btn.setVisible(raster)
+        self.beauty_group.setVisible(raster)
+        for row in self.rows.values():
+            row.setVisible(raster)
         is_text = layer is not None and layer.kind.value == "text"
         for widget in (self.text_input, self.font_size, self.text_align, self.text_color, self.font_family, self.bold, self.outline, self.shadow):
             widget.setVisible(is_text)
@@ -228,7 +254,7 @@ class AdjustmentsPanel(QWidget):
                          "height": layer.height*layer.scale_y, "rotation": layer.rotation}[key]
                 control.setValue(value)
                 control.blockSignals(False)
-            for widget in (self.font_family, self.bold, self.outline, self.shadow, self.shape_kind, self.stroke_width):
+            for widget in (self.font_family, self.bold, self.outline, self.shadow, self.shape_kind, self.stroke_width, self.gradient_angle):
                 widget.blockSignals(True)
             if is_text:
                 from PySide6.QtGui import QFont
@@ -240,7 +266,8 @@ class AdjustmentsPanel(QWidget):
             if layer.kind.value == "shape":
                 self.shape_kind.setCurrentText(tr(layer.spec.get("shape", "rectangle")))
                 self.stroke_width.setValue(layer.spec.get("stroke_width", 0))
-            for widget in (self.font_family, self.bold, self.outline, self.shadow, self.shape_kind, self.stroke_width):
+                self.gradient_angle.setValue((layer.spec.get("gradient") or {}).get("angle", 90))
+            for widget in (self.font_family, self.bold, self.outline, self.shadow, self.shape_kind, self.stroke_width, self.gradient_angle):
                 widget.blockSignals(False)
             for key, row in self.rows.items():
                 row.sync(layer.adjustments.get(key, 0.0))

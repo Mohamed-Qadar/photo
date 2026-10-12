@@ -41,8 +41,29 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest -v
 
+      - name: Run GUI workflows
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python tool/smoke_test.py --smoke-output dist/qa-source
+
       - name: Build with PyInstaller
         run: pyinstaller packaging/photostudio.spec --noconfirm
+
+      - name: Test packaged application
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          $process = Start-Process -FilePath "dist\PhotoStudio\PhotoStudio.exe" -ArgumentList "--smoke-test", "--smoke-output", "dist/qa-packaged" -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "Packaged smoke test failed: $($process.ExitCode)" }
+          if (!(Test-Path "dist/qa-packaged/smoke_result.txt")) { throw "Missing packaged smoke result" }
+
+      - name: Upload workflow screenshots and results
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhotoStudio-QA
+          path: |
+            dist/qa-source/
+            dist/qa-packaged/
 
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y
@@ -92,12 +113,12 @@ jobs:
 
             Developed by Eng. Mohamed Ibrahim Abdi — Computer Engineer, specializing in
             Natural Language Processing and Computer Vision.
-            Contact: mohaqadar280@gmail.com
+            Contact: mohamedqadar280@gmail.com
 
             This is an automated build. Verify the SHA-256 checksum before running:
             `Get-FileHash PhotoStudio-Setup.exe -Algorithm SHA256`
 
-            Status: in active development (Phase 1 vertical slice). Not a stable release.
+            Status: version 1.2.0 in active development. Not a stable release.
           files: |
             dist/installer/PhotoStudio-Setup.exe
             dist/installer/PhotoStudio-Setup.exe.sha256

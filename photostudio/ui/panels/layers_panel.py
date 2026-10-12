@@ -3,12 +3,13 @@ from __future__ import annotations
 from ..i18n import tr, source_text
 import copy
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QPainter, QPen, QColor
 from PySide6.QtWidgets import (QAbstractItemView, QHBoxLayout, QLabel, QListWidget,
                                QListWidgetItem, QPushButton, QSlider, QVBoxLayout, QWidget, QMenu)
 from ..qimage_bridge import ndarray_to_qpixmap
 from ..workers import RenderQueue
 from ...imaging.transforms import resize
+from ...imaging.adjustments import apply_adjustments
 
 
 def thumbnails(doc, **kwargs):
@@ -28,7 +29,7 @@ def thumbnails(doc, **kwargs):
             if "font_size" in item.spec:
                 item.spec["font_size"] = max(1, item.spec["font_size"])
         item.scale_x = item.scale_y = 1
-        px = item.render()
+        px = apply_adjustments(item.render(), item.adjustments)
         ratio = min(64/px.shape[1], 48/px.shape[0], 1)
         result[layer.id] = resize(px, max(1, round(px.shape[1]*ratio)), max(1, round(px.shape[0]*ratio)))
     return result
@@ -40,6 +41,61 @@ class LayerList(QListWidget):
         self.panel = panel
         self.setDragDropMode(QAbstractItemView.DragDropMode.InternalMove)
         self.setDefaultDropAction(Qt.DropAction.MoveAction)
+        self._press_position = None
+        self._dragging = False
+        self._drop_row = None
+
+    def mousePressEvent(self, event):
+        self._press_position = event.position().toPoint() if event.button() == Qt.MouseButton.LeftButton else None
+        super().mousePressEvent(event)
+
+    def mouseMoveEvent(self, event):
+        if self._press_position is not None:
+            delta = event.position().toPoint()-self._press_position
+            if delta.manhattanLength() >= 8:
+                ids = self.panel.selected_layer_ids()
+                if not ids or any(self.panel.controller.document.layer_by_id(i).locked for i in ids):
+                    return
+                self._dragging = True
+                self._drop_row = self.indexAt(event.position().toPoint()).row()
+                self.setCursor(Qt.CursorShape.ClosedHandCursor)
+                self.viewport().update()
+                return
+        super().mouseMoveEvent(event)
+
+    def paintEvent(self, event):
+        super().paintEvent(event)
+        if self._dragging and self._drop_row is not None and self._drop_row >= 0:
+            rect = self.visualItemRect(self.item(self._drop_row))
+            painter = QPainter(self.viewport())
+            painter.setPen(QPen(QColor("#5b8cff"), 2))
+            painter.drawLine(0, rect.bottom(), self.viewport().width(), rect.bottom())
+
+    def mouseReleaseEvent(self, event):
+        self._press_position = None
+        if self._dragging:
+            self._dragging = False
+            self._drop_row = None
+            self.unsetCursor()
+            old = [self.item(i).data(Qt.ItemDataRole.UserRole) for i in range(self.count())]
+            dragged = [i for i in old if i in self.panel.selected_layer_ids()]
+            target = self.itemAt(event.position().toPoint())
+            remaining = [i for i in old if i not in dragged]
+            if target and target.data(Qt.ItemDataRole.UserRole) in remaining:
+                index = remaining.index(target.data(Qt.ItemDataRole.UserRole))
+                if event.position().y() >= self.visualItemRect(target).center().y():
+                    index += 1
+            elif target:
+                self.viewport().update()
+                return
+            else:
+                index = len(remaining)
+            new = remaining[:index]+dragged+remaining[index:]
+            if new != old:
+                self.panel.controller.reorder_layers(list(reversed(new)), dragged)
+            self.viewport().update()
+            return
+        super().mouseReleaseEvent(event)
 
     def dropEvent(self, event):
         dragged = self.panel.selected_layer_ids()
@@ -89,6 +145,8 @@ class LayersPanel(QWidget):
             button.setToolTip(tr({"▲": "Bring forward", "▼": "Send backward", "Dup": "Duplicate selected layers",
                                "Del": "Delete selected layers"}.get(name, "Lock or unlock selected layers")))
             button.clicked.connect(slot)
+            if name == "Lock":
+                self.lock_button = button
             row.addWidget(button)
         layout.addLayout(row)
         controller.document_opened.connect(self._opened)
@@ -113,6 +171,8 @@ class LayersPanel(QWidget):
         self.opacity.setValue(round(layer.opacity*100) if layer else 100)
         self.opacity.setEnabled(layer is not None and not layer.locked)
         self.opacity.blockSignals(False)
+        selected = self.controller.selected_layers(editable=False, expand_groups=False)
+        self.lock_button.setText(tr("Unlock") if selected and all(l.locked for l in selected) else tr("Lock"))
         self._syncing = False
 
     def refresh(self):
@@ -140,7 +200,7 @@ class LayersPanel(QWidget):
                                 (" · Grouped" if layer.group else "")))
                 item.setCheckState(Qt.CheckState.Checked if layer.visible else Qt.CheckState.Unchecked)
                 item.setIcon(self._icons.get(layer.id, QIcon()))
-            signature = [(l.id, id(l.pixels), repr(l.spec), l.rotation) for l in doc.layers]
+            signature = [(l.id, id(l.pixels), repr(l.spec), repr(l.adjustments), l.rotation) for l in doc.layers]
             if signature != self._signature:
                 self._signature = signature
                 self.thumbnails.request(doc)

@@ -50,6 +50,17 @@ def test_invalid_print_layout_is_rejected():
         passport.mm_to_px(-1, 300)
 
 
+def test_raster_exports_preserve_physical_dpi(tmp_path):
+    from PIL import Image
+    from photostudio.core.project_io import export_document
+    doc = Document.blank(30, 20, dpi=300)
+    for fmt in ("png", "jpg"):
+        path = tmp_path / f"print.{fmt}"
+        export_document(doc, path, fmt)
+        with Image.open(path) as image:
+            assert image.info["dpi"][0] == pytest.approx(300, abs=.1)
+
+
 def test_large_processing_rejects_stale_result(qtbot, monkeypatch):
     import photostudio.imaging.beauty as beauty
     started, release = threading.Event(), threading.Event()

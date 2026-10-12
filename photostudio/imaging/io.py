@@ -24,18 +24,19 @@ def load_image(path: str | Path) -> np.ndarray:
         return np.asarray(img, dtype=np.uint8).copy()
 
 
-def save_png(pixels: np.ndarray, path: str | Path, keep_alpha: bool = True) -> None:
+def save_png(pixels: np.ndarray, path: str | Path, keep_alpha: bool = True, dpi=None) -> None:
     img = Image.fromarray(pixels, mode="RGBA")
     if not keep_alpha:
         bg = Image.new("RGBA", img.size, (255, 255, 255, 255))
         img = Image.alpha_composite(bg, img).convert("RGB")
-    img.save(Path(path), format="PNG")
+    img.save(Path(path), format="PNG", **({"dpi": (dpi, dpi)} if dpi else {}))
 
 
 def save_jpg(pixels: np.ndarray, path: str | Path, quality: int = 92,
-             background: tuple[int, int, int] = (255, 255, 255)) -> None:
+             background: tuple[int, int, int] = (255, 255, 255), dpi=None) -> None:
     """JPG has no alpha; composite over a solid background first."""
     img = Image.fromarray(pixels, mode="RGBA")
     bg = Image.new("RGBA", img.size, (*background, 255))
     flat = Image.alpha_composite(bg, img).convert("RGB")
-    flat.save(Path(path), format="JPEG", quality=int(np.clip(quality, 1, 100)))
+    flat.save(Path(path), format="JPEG", quality=int(np.clip(quality, 1, 100)),
+              **({"dpi": (dpi, dpi)} if dpi else {}))

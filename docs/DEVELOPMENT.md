@@ -101,3 +101,23 @@ is honored. Older project manifests default missing transform fields to identity
 Runtime, installer and package metadata use version 1.2.0. The Phase 1 report is
 historical. The source tree has progressed beyond that initial delivery. Autosave
 and the interactive object canvas are subsequent phases, not baseline capabilities.
+
+## Phase 7 — visible workflows and Windows packaging
+
+The final local suite passes all 117 tests. The eight canvas interaction tests also
+pass with 200% display scaling. Real Qt mouse events exercise object movement and
+layer reordering; visible window workflows cover property edits, save/reopen,
+PNG/JPG export, language switching and cancellation of a save during close.
+PNG/JPG exports preserve document DPI, and text placement accounts for font bearings.
+
+The source entry point passes the expanded GUI smoke workflow. English editor and
+Somali home screenshots are checked in under `docs/screenshots`. The smoke runner
+is included in the application package and can be invoked with `--smoke-test`.
+Windows CI now runs it against both source and the actual PyInstaller executable
+before building the installer, and uploads screenshots/results as `PhotoStudio-QA`.
+The installer and SHA-256 checksum remain available as `PhotoStudio-Setup`.
+
+Version stays 1.2.0 in active development. These are test artifacts; this work does
+not create a version tag or publish a release. Remaining product boundaries are
+documented in README.md, including approximate portrait effects, the 40-megapixel
+allocation limit, and future masks/adjustment layers/batch editing.

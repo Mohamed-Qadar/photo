@@ -25,6 +25,7 @@ PROJECT_FILTER = "PhotoStudio Project (*.pstudio)"
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
+        theme.ensure_fonts()
         from ..core.recovery import data_root
         from . import i18n
         self.settings = QSettings(str(data_root() / "settings.ini"), QSettings.Format.IniFormat)
@@ -41,6 +42,7 @@ class MainWindow(QMainWindow):
         self.autosave = Autosave(self.controller, self)
         self.file_jobs = FileJobs(self)
         self._recovery_path = None
+        self._closed = False
         from .workers import RenderQueue
         from ..core.pipeline import composite_preview
         self.render_queue = RenderQueue(self, composite_preview)
@@ -87,7 +89,9 @@ class MainWindow(QMainWindow):
                 dock.setWidget(widget)
             dock.setObjectName(f"dock_{title.lower()}")
             self.addDockWidget(area, dock)
+            dock.setMinimumWidth(260)
             self._docks.append(dock)
+        self.resizeDocks(self._docks, [320, 320], Qt.Orientation.Horizontal)
 
     def _set_docks_visible(self, visible: bool):
         for dock in self._docks:
@@ -299,6 +303,7 @@ class MainWindow(QMainWindow):
         dlg.exec()
 
     def _show_home(self):
+        self.home.set_recent(self.settings.value("recent", [], type=list))
         self._stack.setCurrentWidget(self.home)
         self._set_docks_visible(False)          # no empty panels on the home screen
         self.tools.hide()
@@ -369,9 +374,12 @@ class MainWindow(QMainWindow):
         h, ok = QInputDialog.getInt(self, tr("New Design"), tr("Height (px):"), 1080, 1, 20000)
         if not ok:
             return
+        dpi, ok = QInputDialog.getInt(self, tr("New Design"), "DPI:", 72, 72, 2400)
+        if not ok:
+            return
         if self._confirm_replace():
             try:
-                self.controller.new_document(w, h)
+                self.controller.new_document(w, h, dpi=dpi)
             except Exception as exc:
                 self._error("Could not create design", exc)
 
@@ -472,7 +480,7 @@ class MainWindow(QMainWindow):
         path, _ = QFileDialog.getSaveFileName(self, tr("Save Project As"), "untitled.pstudio",
                                               PROJECT_FILTER)
         if path:
-            if not path.endswith(".pstudio"):
+            if not path.lower().endswith(".pstudio"):
                 path += ".pstudio"
             try:
                 self._save_project(path)
@@ -490,7 +498,10 @@ class MainWindow(QMainWindow):
             "PNG Image (*.png);;JPEG Image (*.jpg)")
         if not path:
             return
-        fmt = "jpg" if selected.startswith("JPEG") or path.lower().endswith((".jpg", ".jpeg")) else "png"
+        suffix = Path(path).suffix.lower()
+        fmt = ("jpg" if suffix in (".jpg", ".jpeg") else "png") if suffix in (".jpg", ".jpeg", ".png") else ("jpg" if selected.startswith("JPEG") else "png")
+        if suffix not in (".jpg", ".jpeg", ".png"):
+            path += "." + fmt
         try:
             self._export_file(path, fmt)
             self.statusBar().showMessage(tr(f"Exported {Path(path).name}"), 3000)
@@ -518,7 +529,7 @@ class MainWindow(QMainWindow):
             self, tr("About PhotoStudio"),
             tr(f"<h3>{__app_name__}</h3>"
             f"<p>Version {__version__} — offline-first photo &amp; design studio.<br>"
-            "Phase 1 vertical slice (in active development).</p>"
+            "In active development.</p>"
             "<hr>"
             f"<p><b>Developed by {__author__}</b><br>"
             f"{__author_title__}, specializing in {__author_specialization__}.</p>"
@@ -576,7 +587,8 @@ class MainWindow(QMainWindow):
             self.setWindowTitle(tr(__app_name__))
             return
         name = self.controller.project_path.name if self.controller.project_path else doc.name
-        self.setWindowTitle(tr(f"{name} — {__app_name__}"))
+        mark = " *" if self.controller.is_dirty else ""
+        self.setWindowTitle(f"{name}{mark} — {__app_name__}")
 
     def _error(self, message: str, exc: Exception):
         QMessageBox.critical(self, tr("Error"), f"{tr(message)}:\n{tr(str(exc))}")
@@ -590,6 +602,8 @@ class MainWindow(QMainWindow):
             i18n.retranslate(dialog)
         self.adjust_panel.refresh()
         self.layers_panel.refresh()
+        self.home.set_recent(self.settings.value("recent", [], type=list))
+        self.statusBar().showMessage(tr("Ready"))
         self._update_actions()
 
     def _remember(self, path):
@@ -639,6 +653,11 @@ class MainWindow(QMainWindow):
                 self._error("Could not open project", exc)
 
     def _offer_recovery(self):
+        if self._closed:
+            return
+        if self.file_jobs.loop is not None:
+            QTimer.singleShot(500, self._offer_recovery)
+            return
         from ..core.recovery import recovery_files
         from ..core.project_io import load_project
         paths = [p for p in recovery_files() if p != self.autosave.path]
@@ -675,6 +694,7 @@ class MainWindow(QMainWindow):
 
     def closeEvent(self, event):
         if self._confirm_replace():
+            self._closed = True
             self.autosave.shutdown()
             self._clear_recovered()
             self.render_queue.invalidate()

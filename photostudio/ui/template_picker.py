@@ -32,8 +32,9 @@ class TemplatePicker(QDialog):
         self.list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         layout.addWidget(self.list)
         for template in templates.TEMPLATES:
-            item = QListWidgetItem(f"{template.name}\n{template.category}")
+            item = QListWidgetItem(f"{tr(template.name)}\n{tr(template.category)}")
             item.setData(Qt.ItemDataRole.UserRole, template.key)
+            item.setData(257, f"{template.name} {template.category}")
             self.list.addItem(item)
         self.list.setCurrentRow(0)
         search.textChanged.connect(lambda text: self._filter(text))
@@ -63,7 +64,7 @@ class TemplatePicker(QDialog):
     def _filter(self, text):
         for row in range(self.list.count()):
             item = self.list.item(row)
-            item.setHidden(text.casefold() not in item.text().casefold())
+            item.setHidden(text.casefold() not in (item.text() + " " + item.data(257)).casefold())
 
     def selected_key(self):
         item = self.list.currentItem()

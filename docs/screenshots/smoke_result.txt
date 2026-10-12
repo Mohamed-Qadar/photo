@@ -1,0 +1,1 @@
+SMOKE OK: photo, design, SVG, portrait, passport, mouse, persistence, exports and localization

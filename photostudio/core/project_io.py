@@ -111,7 +111,7 @@ def load_project(path: str | Path) -> Document:
     with zipfile.ZipFile(path, "r") as zf:
         manifest = json.loads(zf.read("manifest.json"))
         version = manifest.get("format_version")
-        if version is None or version > FORMAT_VERSION:
+        if not isinstance(version, int) or version < 1 or version > FORMAT_VERSION:
             raise ValueError(
                 f"Unsupported .pstudio format_version {version!r} "
                 f"(this build supports up to {FORMAT_VERSION})")
@@ -153,9 +153,9 @@ def export_document(document: Document, path: str | Path, fmt: str = "png",
     flat = composite(document)
     fmt = fmt.lower().lstrip(".")
     if fmt in ("png",):
-        img_io.save_png(flat, path, keep_alpha=keep_alpha)
+        img_io.save_png(flat, path, keep_alpha=keep_alpha, dpi=document.dpi)
     elif fmt in ("jpg", "jpeg"):
-        img_io.save_jpg(flat, path, quality=quality)
+        img_io.save_jpg(flat, path, quality=quality, dpi=document.dpi)
     elif fmt == "pdf":
         from .passport import export_pdf
         export_pdf(flat, path, dpi=document.dpi or 300)

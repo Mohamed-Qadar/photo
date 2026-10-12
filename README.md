@@ -2,9 +2,9 @@
 
 **Offline-first photo & design studio for Windows 10/11 (x64).**
 
-> **Version 1.2.0 — in active development (Phase 1 vertical slice).**
-> The core photo-editing workflow is implemented and tested; many advanced modules are planned and
-> are shown as clearly-disabled tiles in the app until they are built. No fake features.
+> **Version 1.2.0 — development build.**
+> Interactive photo and design workflows run offline. Windows test installers are
+> built by GitHub Actions; a public release requires maintainer approval.
 
 Built with Python 3.11, PySide6 / Qt 6, NumPy, Pillow and OpenCV.
 
@@ -37,11 +37,22 @@ native `.pstudio` project format.
   DPI, with text and shapes; **gradient** backgrounds, **SVG import**, **align to canvas** (6 ways),
   **snapping** helpers, layer **grouping** (move together), **reorder / duplicate / opacity / lock**,
   and editable **typography** (font size, colour, bold, alignment).
-- Full **undo / redo** (slider, move and text edits coalesce into single steps).
+- **Interactive canvas** — click/Shift selection, marquee selection, direct dragging,
+  eight resize handles, rotation handles, multi-object movement, snapping guides,
+  arrow keys and Space+drag pan. Each completed gesture is one undo step; locked
+  layers cannot be transformed.
+- **Layers & properties** — background-generated thumbnails, mouse drag ordering,
+  rename, visibility, locking, opacity, context menus and shared selection. Editable
+  font family/size, bold, alignment, colour, outline/shadow, shape fills/strokes,
+  gradients and numeric transforms are visible in the properties dock.
+- Full **undo / redo**, including multi-object transforms and layer ordering.
 - Save / open native **`.pstudio`** projects — text & shapes round-trip **editable**, never flattened.
 - Export to **PNG** and **JPG**, matching the editor preview.
-- Redesigned **home screen** (hero + workspace tiles, no empty panels) and a cleaner editor shell;
-  dark (default) and light themes; Settings (General + About) and About window.
+- **English / Somali** — switch in Settings while preserving the open document and history.
+  Home includes recent projects; editor includes toolbars, properties, layers and context menus.
+- **Stability** — unsaved-change prompts, atomic project saving, 30-second background
+  autosave and startup/manual recovery. Large image operations run on workers and
+  previews are bounded to 1600 pixels while exports remain full resolution.
 
 - **Beauty Studio** — natural **skin smoothing** (edge-preserving), **portrait enhance**,
   approximate **background blur**, and **spot/blemish removal** (click to heal); all offline,
@@ -53,21 +64,33 @@ native `.pstudio` project format.
   biometric requirements; verify the exact spec with the relevant authority. No acceptance is
   guaranteed.*
 
-### Planned / in progress
+### Current limits and future work
 
-- On-canvas transform handles & direct drag, marquee multi-select, layer thumbnails, masks &
-  adjustment layers, autosave/crash recovery, batch export, Somali localization, and optional
-  on-device AI (background removal) — subject to model licensing.
+- Maximum image/canvas size: 40 megapixels. Crop/resize photo commands operate on
+  the active raster layer; on-canvas transforms preserve editable objects.
+- Background blur uses a feathered central ellipse, and background replacement is
+  for plain backgrounds. They are approximate offline methods.
+- Masks, adjustment layers, batch export, reusable components and optional licensed
+  on-device AI remain future work. Somali translation is included; further review
+  by native-speaking users is welcome.
 
-See [ARCHITECTURE.md](ARCHITECTURE.md) and the milestone plan for details.
+See [ARCHITECTURE.md](ARCHITECTURE.md) and [development notes](docs/DEVELOPMENT.md).
 
 ## Screenshots
 
-_Screenshots will be added here once the UI is captured on a release build._
+Source build, captured with the real Qt application:
+
+![Interactive editor](docs/screenshots/editor_en.png)
+![Somali home screen](docs/screenshots/home_so.png)
 
 ## Download
 
-Pre-built Windows installers are published on the
+The latest tested installer and checksum are available as **PhotoStudio-Setup**
+artifacts on the [Windows Build runs](https://github.com/Mohamed-Qadar/photo/actions/workflows/windows-build.yml).
+The **PhotoStudio-QA** artifact includes source and packaged workflow screenshots.
+GitHub requires signing in to download Actions artifacts.
+
+Approved pre-built Windows releases are published on the
 [**Releases**](https://github.com/Mohamed-Qadar/photo/releases) page when available:
 
 - `PhotoStudio-Setup.exe` — installer (no Python required)
@@ -123,13 +146,17 @@ or manually:
 .\.venv\Scripts\python.exe -m pytest
 ```
 
-The `core` and `imaging` packages are Qt-free and fully unit-tested headlessly; a test enforces that
-boundary.
+The `core` and `imaging` packages are Qt-free; a test enforces that boundary.
+Qt interaction tests cover crop, drag, resize, rotation, selection, snapping and layer ordering.
+Additional workflows validate localization, recovery, workers and export accuracy.
+
+Run the GUI workflow check with `python tool/smoke_test.py`. The packaged application
+supports `PhotoStudio.exe --smoke-test --smoke-output <folder>` for CI verification.
 
 ## Building the Windows installer (maintainers)
 
 Handled automatically by GitHub Actions (`.github/workflows/windows-build.yml`) on a Windows runner:
-tests → PyInstaller → Inno Setup → SHA-256 → uploaded artifact. Pushing a `v*` tag additionally
+tests → source GUI workflows → PyInstaller → packaged GUI workflows → Inno Setup → SHA-256 → uploaded artifacts. Pushing a `v*` tag additionally
 publishes a GitHub pre-release. Local build:
 
 ```powershell
@@ -149,7 +176,8 @@ Processing and Computer Vision.**
 
 ## Version history
 
-- **1.2.0** (in development) — Milestone F: Passport & ID — example size presets, background
+- **1.2.0** (in development) — Interactive canvas, richer layers/properties, English/Somali UI,
+  autosave/recovery, atomic persistence and background previews. See docs/DEVELOPMENT.md. Milestone F: Passport & ID — example size presets, background
   replacement, face guides, 10×15/A4 print sheets with accurate DPI & multi-photo layout, PDF export
   (sizes are examples, not official specs). Milestone E: Beauty Studio — skin smoothing (bilateral), portrait
   enhance, background blur, click-to-heal spot removal (OpenCV, offline). Milestone D:

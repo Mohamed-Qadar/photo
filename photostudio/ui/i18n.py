@@ -6,6 +6,17 @@ from PySide6.QtCore import QTranslator, QObject
 
 LANGUAGE = "en"
 SO = {
+    "Big Sale Advert": "Xayeysiin iib weyn", "Shop Opening": "Furitaanka dukaan", "Service Promo": "Xayeysiin adeeg",
+    "Business Card": "Kaarka ganacsiga", "Discount Story": "Sheeko qiimo-dhimis", "Phone Shop": "Dukaanka telefoonnada",
+    "School Enrollment": "Diiwaangelinta iskuulka", "Study Tips": "Talooyin waxbarasho", "Exam Notice": "Ogeysiis imtixaan",
+    "Library Event": "Munaasabadda maktabadda", "Restaurant Menu": "Liiska makhaayadda", "Daily Special": "Cuntada maanta",
+    "Coffee Promo": "Xayeysiin qaxwo", "Delivery Offer": "Dalabka gaarsiinta", "Iftar Special": "Dalabka iftaarka",
+    "Wedding Invite": "Casuumaadda arooska", "Conference": "Shirweyne", "Sports Day": "Maalinta ciyaaraha",
+    "Charity Drive": "Ololaha sadaqada", "Eid Greeting": "Hambalyada ciidda", "Youth Meetup": "Kulanka dhallinyarada",
+    "Announcement": "Ogeysiis",
+    "Font family": "Nooca farta", "Gradient angle: ": "Xagasha midabka: ",
+    "Could not create design": "Naqshadda lama samayn karin",
+    "Ready": "Diyaar", "Unlock": "Fur qufulka", "Locked": "Qufulan", "Unlocked": "Furan", "Grouped": "Kooxaysan",
     "&File": "&Fayl", "&Edit": "&Tafatir", "&Image": "&Sawir", "&Insert": "&Ku dar",
     "&Arrange": "&Habee", "&Filter": "&Shaandhee", "&Beauty": "&Qurxin",
     "&Passport": "&Baasaboor", "&View": "&Muuqaal", "&Help": "&Caawin",
@@ -125,9 +136,25 @@ SO = {
     "DPI must be positive": "DPI waa inuu togan yahay.",
 }
 
+SNIPPETS = {
+    "Version ": "Nooca ", "Developed by ": "Waxaa sameeyay ",
+    "Computer Engineer": "Injineer kombiyuutar", "specializing in ": "ku takhasusay ",
+    "Specializing in ": "Ku takhasusay ",
+    "Natural Language Processing and Computer Vision": "Farsamaynta luqadda dabiiciga ah iyo aragga kombiyuutarka",
+    "Offline-first photo &amp; design studio.": "Xarun sawirro iyo naqshado oo internet la'aan shaqaysa.",
+    "offline-first photo &amp; design studio.": "xarun sawirro iyo naqshado oo internet la'aan shaqaysa.",
+    "In active development.": "Weli waa la horumarinayaa.", "Contact:": "Xiriir:",
+    "NLP & Computer Vision": "NLP iyo aragga kombiyuutarka",
+}
+
 
 def source_text(value):
-    return next((source for source, translated in SO.items() if translated == value), value)
+    exact = next((source for source, translated in SO.items() if translated == value), None)
+    if exact is not None:
+        return exact
+    for source, translated in SNIPPETS.items():
+        value = value.replace(translated, source)
+    return value
 
 
 def tr(text):
@@ -144,6 +171,8 @@ def tr(text):
         if text.startswith(prefix):
             rest = text[len(prefix):]
             return translated + (tr(rest) if prefix in ("Undo ", "Redo ") else rest.replace("photos", "sawirro"))
+    for source, translated in SNIPPETS.items():
+        text = text.replace(source, translated)
     return text
 
 

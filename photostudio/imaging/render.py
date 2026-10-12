@@ -57,15 +57,17 @@ def render_text(spec: dict) -> np.ndarray:
 
     img = Image.new("RGBA", (w, h), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
+    outline = max(0, int(spec.get("outline_width", 0)))
     # Multi-line aware placement.
     try:
-        bbox = draw.multiline_textbbox((0, 0), text, font=font, align=align)
+        bbox = draw.multiline_textbbox((0, 0), text, font=font, align=align, stroke_width=outline)
         tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
     except Exception:
         tw, th = draw.textlength(text, font=font), int(spec.get("font_size", 48))
+        bbox = (0, 0, tw, th)
     x = {"left": 0, "center": (w - tw) // 2, "right": w - tw}.get(align, (w - tw) // 2)
-    y = max(0, (h - th) // 2)
-    outline = max(0, int(spec.get("outline_width", 0)))
+    x -= bbox[0]
+    y = (h - th) // 2 - bbox[1]
     shadow = max(0, int(spec.get("shadow_offset", 0)))
     if shadow:
         draw.multiline_text((x + shadow, y + shadow), text, fill=tuple(spec.get("shadow_color", [0, 0, 0, 120])),

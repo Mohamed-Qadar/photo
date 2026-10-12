@@ -54,8 +54,8 @@ class EditorController(QObject):
         self.history_changed.emit()
 
     def new_document(self, width: int, height: int, name: str = "Untitled",
-                     background=(255, 255, 255, 255)):
-        self._attach(Document.blank(width, height, name=name, background=background))
+                     background=(255, 255, 255, 255), dpi=72):
+        self._attach(Document.blank(width, height, name=name, background=background, dpi=dpi))
         self._dirty = True
         self.history_changed.emit()
 
@@ -251,7 +251,12 @@ class EditorController(QObject):
         if layer is None or layer.pixels is None:
             return
         # Translate canvas (document) coords to layer-local coords.
-        lx, ly = int(x) - layer.offset[0], int(y) - layer.offset[1]
+        import math
+        dx = x-layer.offset[0]-layer.display_size[0]/2
+        dy = y-layer.offset[1]-layer.display_size[1]/2
+        angle = math.radians(layer.rotation)
+        lx = int((dx*math.cos(angle)+dy*math.sin(angle)+round(layer.width*layer.scale_x)/2)/layer.scale_x)
+        ly = int((-dx*math.sin(angle)+dy*math.cos(angle)+round(layer.height*layer.scale_y)/2)/layer.scale_y)
         if not (0 <= lx < layer.width and 0 <= ly < layer.height):
             return
         self._filter(layer, heal, "Spot Removal", cx=lx, cy=ly, radius=radius)

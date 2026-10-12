@@ -4,6 +4,21 @@ Original palette — no third-party branded colors or assets.
 """
 from __future__ import annotations
 
+
+def ensure_fonts():
+    """Register installed system fonts for Qt's offscreen platform as well."""
+    from pathlib import Path
+    from PySide6.QtGui import QFontDatabase
+    from PySide6.QtWidgets import QApplication
+    app = QApplication.instance()
+    if app is None or getattr(app, "_photostudio_fonts", False):
+        return
+    for filename in ("segoeui.ttf", "segoeuib.ttf", "arial.ttf", "seguisym.ttf"):
+        path = Path("C:/Windows/Fonts") / filename
+        if path.exists():
+            QFontDatabase.addApplicationFont(str(path))
+    app._photostudio_fonts = True
+
 DARK = {
     "bg": "#1b1d23",
     "bg_elevated": "#23262e",
