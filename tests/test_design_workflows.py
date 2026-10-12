@@ -9,9 +9,10 @@ from photostudio.core import project_io
 def test_template_gallery_offline_filter(qtbot):
     picker = TemplatePicker()
     qtbot.addWidget(picker)
-    assert picker.list.count() == 22
-    picker._filter("Restaurant")
-    visible = [picker.list.item(i) for i in range(22) if not picker.list.item(i).isHidden()]
+    assert picker.list.count() == 62
+    picker.category.setCurrentIndex(picker.category.findData("Restaurant"))
+    picker._filter("")
+    visible = [picker.list.item(i) for i in range(62) if not picker.list.item(i).isHidden()]
     assert len(visible) == 5
     qtbot.waitUntil(lambda: not picker.list.item(0).icon().isNull())
     picker.pool.waitForDone()

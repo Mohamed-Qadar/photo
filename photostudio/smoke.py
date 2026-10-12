@@ -26,6 +26,20 @@ def main() -> int:
     os.environ["PHOTOSTUDIO_DATA_DIR"] = sandbox.name
     app = QApplication.instance() or QApplication([])
     win = MainWindow()
+    try:
+        return _run_flow(app,win,sandbox)
+    finally:
+        from photostudio.ui.template_picker import TemplatePicker
+        for picker in win.findChildren(TemplatePicker):
+            picker.reject()
+        if not win._closed:
+            win.controller._dirty=False
+            win.close()
+        app.processEvents()
+        sandbox.cleanup()
+
+
+def _run_flow(app,win,sandbox):
     win.show()
 
     c = win.controller
@@ -113,7 +127,7 @@ def main() -> int:
         deadline = time.monotonic() + 30
         while win.render_queue.running or win.render_queue.pending:
             app.processEvents()
-            QTest.qWait(5)
+            time.sleep(.005)  # Release Python's GIL so preview workers can progress.
             assert time.monotonic() < deadline, f"preview timed out: running={win.render_queue.running}, pending={win.render_queue.pending is not None}, threads={win.render_queue.pool.activeThreadCount()}"
         app.processEvents()
     c.new_document(600, 400)
@@ -149,6 +163,49 @@ def main() -> int:
     assert win.menuBar().actions()[0].text() == "&Fayl"
     win.change_language("en")
     assert win.menuBar().actions()[0].text() == "&File"
+    # All bundled additions render without a network or missing asset dependency.
+    from photostudio.core import templates
+    from photostudio.core.pipeline import composite_preview
+    from photostudio.ui.template_picker import TemplatePicker
+    import time
+    assert len(templates.TEMPLATES)==62 and len(templates.NEW_TEMPLATES)==40
+    for template in templates.NEW_TEMPLATES:
+        assert composite_preview(templates.build(template),max_side=100).size > 0
+    picker = TemplatePicker(win)
+    picker.show()
+    picker.category.setCurrentIndex(picker.category.findData("Business & Marketing"))
+    picker.search.setText("Smartphone")
+    assert picker.selected_key()=="pro_smartphone"
+    deadline = time.monotonic()+30
+    while picker.items["pro_smartphone"].icon().isNull():
+        app.processEvents()
+        time.sleep(.01)
+        assert time.monotonic()<deadline,"template thumbnail timed out"
+    app.processEvents()
+    if "--smoke-output" in sys.argv:
+        output = Path(sys.argv[sys.argv.index("--smoke-output")+1])
+        output.mkdir(parents=True,exist_ok=True)
+        picker.grab().save(str(output/"template_browser_en.png"))
+    picker.use_button.click()
+    assert picker.result()==1
+    c.open_template(picker.selected_key())
+    with tempfile.TemporaryDirectory() as directory:
+        from PIL import Image
+        photo = Path(directory)/"replacement.png"
+        Image.new("RGB",(240,320),"#447766").save(photo)
+        layer = next(layer for layer in c.document.layers if layer.name.startswith("Photo ·"))
+        c.select([layer.id])
+        before = layer.display_size
+        c.import_image(photo,replace=True)
+        assert layer.display_size==before
+        c.undo()
+        c.redo()
+        project = Path(directory)/"new-template.pstudio"
+        win._save_project(project)
+        win._open_project(project)
+        win._export_file(Path(directory)/"new-template.png","png")
+        win._export_file(Path(directory)/"new-template.jpg","jpg")
+        win._export_file(Path(directory)/"new-template.pdf","pdf")
     # Packaged builds must also load the public key, crypto backend and payment UI.
     from photostudio.ui.license_dialog import LicenseDialog
     from photostudio.core.project_io import export_pixels

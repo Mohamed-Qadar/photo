@@ -1,0 +1,322 @@
+[
+  {
+    "key": "pro_match_day",
+    "name": "Match Day",
+    "category": "Football & Sports",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "9798309616787ae564331303514d8e5b22cfc7b6f31c31a4121624bbc972b527"
+  },
+  {
+    "key": "pro_match_results",
+    "name": "Match Results",
+    "category": "Football & Sports",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "03d6f5bf159f39c702328799c54e53497ded7bb87a4475ea3e96d4e49c6443d2"
+  },
+  {
+    "key": "pro_starting_lineup",
+    "name": "Starting Lineup",
+    "category": "Football & Sports",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "4143849416534c6ebef07815168a1a74c521dba2f8760f83e4b6d22aab3238e6"
+  },
+  {
+    "key": "pro_player_transfer",
+    "name": "Player Transfer",
+    "category": "Football & Sports",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "7e22ccafaa3410d41d79e62559a5111847ef40bf3ffee81b2bcfccc3c6e0321c"
+  },
+  {
+    "key": "pro_tournament",
+    "name": "Tournament Announcement",
+    "category": "Football & Sports",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "b14843defd99bd78dddfb79151d8fa9825220aa03dc779c383686375d5585478"
+  },
+  {
+    "key": "pro_player_match",
+    "name": "Player of the Match",
+    "category": "Football & Sports",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "31073dcb3048908288cd1208caa9e2e7b62bd9f7bd0c07a6a0a5b871fc8fabae"
+  },
+  {
+    "key": "pro_smartphone",
+    "name": "Smartphone Shop Advertisement",
+    "category": "Business & Marketing",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "f4baf2e272342b107963eb448aa0660598e7e2cc855334328fb62b481dfc4c0c"
+  },
+  {
+    "key": "pro_supermarket",
+    "name": "Supermarket Promotion",
+    "category": "Business & Marketing",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "4c540592b727dca90db1ebf81968144de67711289b849bdbe7855c949a7c53b3"
+  },
+  {
+    "key": "pro_restaurant_offer",
+    "name": "Restaurant Special Offer",
+    "category": "Business & Marketing",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "a31d00f595723782917d073b6517c266e8c757f263cbdc8c8ec9831bf2630bea"
+  },
+  {
+    "key": "pro_fashion",
+    "name": "Fashion Sale",
+    "category": "Business & Marketing",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "86d1ce6a4e0e2884a9b5c97756126c7b7c6693e1be7488d639ee8ec5384970e9"
+  },
+  {
+    "key": "pro_real_estate",
+    "name": "Real Estate Advertisement",
+    "category": "Business & Marketing",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "3eb2ff0e82d3f9cb40d32183c4fe5e9ac854e8c38fdc78e6f7d6349101d52e36"
+  },
+  {
+    "key": "pro_internet",
+    "name": "Internet Service Advertisement",
+    "category": "Business & Marketing",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "8bd99bea61e4c18254464e1c8d99b14b186e9908dd56c35d66300985d8c20a65"
+  },
+  {
+    "key": "pro_beauty_salon",
+    "name": "Beauty Salon Promotion",
+    "category": "Business & Marketing",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "8d10a52a1f72a6724079a1f30770b4195cbc32df31e85d7508f7bf8baa704eaa"
+  },
+  {
+    "key": "pro_ramadan",
+    "name": "Ramadan Kareem",
+    "category": "Ramadan & Islamic Holidays",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "dd37387be29b52bca5f13bf37459d8bb4c6bde1033aeecddf532d3991989064d"
+  },
+  {
+    "key": "pro_eid_fitr",
+    "name": "Eid al-Fitr",
+    "category": "Ramadan & Islamic Holidays",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "f683a3237bf5ab2c4b9493aed1bdf123566b01e358283c16f7badebcd1031524"
+  },
+  {
+    "key": "pro_eid_adha",
+    "name": "Eid al-Adha",
+    "category": "Ramadan & Islamic Holidays",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "8fef3eee5082fa190be905c85eba1728320927460636825775f175fa1190637e"
+  },
+  {
+    "key": "pro_iftar",
+    "name": "Iftar Invitation",
+    "category": "Ramadan & Islamic Holidays",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "54401ac4474ee7e0dc7cd224d7d06f0883248ee51aef7fb05d7accd0fe227be6"
+  },
+  {
+    "key": "pro_friday",
+    "name": "Friday Mubarak",
+    "category": "Ramadan & Islamic Holidays",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "911ad73c74560bece9515be725a723423c778ca04dc88fa514fbc7c580adf64f"
+  },
+  {
+    "key": "pro_wedding",
+    "name": "Wedding Invitation",
+    "category": "Weddings & Celebrations",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "7d0b756d89e4fe8598663350380150c7f70c5a109218631afe2716676865a907"
+  },
+  {
+    "key": "pro_engagement",
+    "name": "Engagement Announcement",
+    "category": "Weddings & Celebrations",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "057230a89649fb5fd38fd13bc0b65fb115b6d3535db7626cb6b4926782a3ff7c"
+  },
+  {
+    "key": "pro_graduation",
+    "name": "Graduation Congratulations",
+    "category": "Weddings & Celebrations",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "04d18f05cc29c7c4f144c467bc782b4b1465efa1497515c4bdf87d2943241432"
+  },
+  {
+    "key": "pro_birthday",
+    "name": "Birthday Greeting",
+    "category": "Weddings & Celebrations",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "ec5036c335341e31e3fff501ebbd5c2b808b60243c13fcb9f9fe2b643b7e7694"
+  },
+  {
+    "key": "pro_thank_you",
+    "name": "Thank You Card",
+    "category": "Weddings & Celebrations",
+    "width": 1500,
+    "height": 1000,
+    "sha256": "ef886e4a3259d3215b06a029784d1717b29e367b851d63b8357b0494f1a8b2e7"
+  },
+  {
+    "key": "pro_book",
+    "name": "Professional Book Cover",
+    "category": "Education & Books",
+    "width": 1600,
+    "height": 2400,
+    "sha256": "d95989c11953bad316360f1059ed8f605043580a2778f198fcf3869a88aaa451"
+  },
+  {
+    "key": "pro_university",
+    "name": "University Event Poster",
+    "category": "Education & Books",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "07fadda276666b0a3c88af7422032cd5b10a223787c17611b97b66d3f5291489"
+  },
+  {
+    "key": "pro_school",
+    "name": "School Registration",
+    "category": "Education & Books",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "39da1aff47be59fbe5afbc83c212eed8f4444baf1955beac7060997450fa9aa8"
+  },
+  {
+    "key": "pro_course",
+    "name": "Course Advertisement",
+    "category": "Education & Books",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "d10e4ca43da182708c203f78f2e9dd2035c7df937a2ed6a4ac9dc1a047b8f27e"
+  },
+  {
+    "key": "pro_certificate",
+    "name": "Certificate Design",
+    "category": "Education & Books",
+    "width": 1754,
+    "height": 1240,
+    "sha256": "9caafababda8d23ce0fb0fb45cb58ab0a9a5528adfff48811813a4badd5ef602"
+  },
+  {
+    "key": "pro_job",
+    "name": "Job Vacancy",
+    "category": "Announcements & Civic Information",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "677c8b6584c191909233d5806cdf7bf9014214248f9dca0e1ea0bfd3f7305807"
+  },
+  {
+    "key": "pro_public_meeting",
+    "name": "Public Meeting",
+    "category": "Announcements & Civic Information",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "8a495e8d49a5af804c38a491a3ba260867f088f0e55710d7769030d71de46f7b"
+  },
+  {
+    "key": "pro_community_event",
+    "name": "Community Event",
+    "category": "Announcements & Civic Information",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "58548067972177d741fdb06fc26fe105c4b625ee6e3c90fbd381db7e1494c9a1"
+  },
+  {
+    "key": "pro_election_info",
+    "name": "Election Information",
+    "category": "Announcements & Civic Information",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "1a67ae7b4def19e214103c936d48412dc8c67752a0e60fa12c38f7be1db4fefa"
+  },
+  {
+    "key": "pro_public_debate",
+    "name": "Public Debate Announcement",
+    "category": "Announcements & Civic Information",
+    "width": 1080,
+    "height": 1350,
+    "sha256": "581c2d6673417b6dc383a81eabaf5151a3db5f9dfff9281597dd0e6da24f6368"
+  },
+  {
+    "key": "pro_youtube",
+    "name": "YouTube Thumbnail",
+    "category": "Digital Content",
+    "width": 1280,
+    "height": 720,
+    "sha256": "7382ada45dc5d59c053aaebdfe836233b7ce7f05dcedc7c07d63ecaf82d73061"
+  },
+  {
+    "key": "pro_podcast",
+    "name": "Podcast Cover",
+    "category": "Digital Content",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "d99b08bd004708e94875055b58e22f3d10c5f65d7373ba7cb43bc704eb86d25b"
+  },
+  {
+    "key": "pro_instagram",
+    "name": "Instagram Advertisement",
+    "category": "Digital Content",
+    "width": 1080,
+    "height": 1080,
+    "sha256": "0ea8ba39e2a520ee362ec7e959c10a357440baf043b4f3ff07abf5351c7e89cd"
+  },
+  {
+    "key": "pro_facebook",
+    "name": "Facebook Promotion",
+    "category": "Digital Content",
+    "width": 1200,
+    "height": 630,
+    "sha256": "ab0a987dd3341efb42c28c942449d225f603dd23c5ceba0f71ec3a52a802d9e8"
+  },
+  {
+    "key": "pro_tiktok",
+    "name": "TikTok Cover",
+    "category": "Digital Content",
+    "width": 1080,
+    "height": 1920,
+    "sha256": "2460bb52922702d2a1b155c7ea16a28fc1ac98311bd746c034bbf3bd3a01f835"
+  },
+  {
+    "key": "pro_whatsapp",
+    "name": "WhatsApp Status",
+    "category": "Digital Content",
+    "width": 1080,
+    "height": 1920,
+    "sha256": "27d40d180e379c053080d05279612d1457898de6fcffcafdf7b9dc915d2f6a58"
+  },
+  {
+    "key": "pro_livestream",
+    "name": "Livestream Announcement",
+    "category": "Digital Content",
+    "width": 1280,
+    "height": 720,
+    "sha256": "dd3c5f0813a6469efb7e45a3acad3f322f5616c43d4ba5f7bb66ff8981006577"
+  }
+]

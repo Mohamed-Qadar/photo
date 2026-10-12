@@ -250,7 +250,24 @@ class MainWindow(QMainWindow):
 
     def _canvas_menu(self, pos):
         from PySide6.QtWidgets import QMenu
+        if self.canvas.read_only or self.controller.document is None: return
+        layer = self.canvas._hit_layer(self.canvas.mapToScene(pos),include_locked=True)
+        if layer:
+            self.controller.select([layer.id])
         menu = QMenu(self)
+        if layer:
+            edit = self._act("Edit",lambda: self._edit_canvas_object(layer.id))
+            menu.addAction(edit)
+            edit.setEnabled(not layer.locked)
+            replace = self._act("Replace Image…",lambda: self.on_import_image(True))
+            menu.addAction(replace)
+            replace.setEnabled(not layer.locked and layer.kind.value == "image" and layer.name != "Background")
+            for label,delta in [("Bring Forward",1),("Send Backward",-1)]:
+                action = self._act(label,lambda checked=False,d=delta: self.controller.reorder_active(d))
+                menu.addAction(action)
+                action.setEnabled(not layer.locked)
+            menu.addAction(self._act("Unlock" if layer.locked else "Lock",lambda: self.controller.set_locked(layer.id,not layer.locked)))
+            menu.addSeparator()
         for label, slot in [("Duplicate selected", self.controller.duplicate_selection),
                             ("Delete selected", self.controller.delete_selection),
                             ("Group selected", lambda: self.controller.group_selected(self.controller.selected_ids)),
@@ -272,9 +289,27 @@ class MainWindow(QMainWindow):
     def on_canvas_background(self):
         if self.controller.document is None:
             return
-        color = QColorDialog.getColor(parent=self, title="Canvas background")
-        if color.isValid():
-            self.controller.set_canvas_background([color.red(), color.green(), color.blue(), 255])
+        from .background_dialog import BackgroundDialog
+        layer = next((l for l in self.controller.document.layers if l.name == "Background"),None)
+        if layer and layer.locked:
+            self.statusBar().showMessage(tr("Unlock the background layer before changing its colour."),5000)
+            return
+        dialog = BackgroundDialog(layer,self)
+        if dialog.exec(): dialog.apply_to(self.controller)
+
+    def _edit_canvas_object(self,layer_id):
+        layer = self.controller.document.layer_by_id(layer_id) if self.controller.document else None
+        if layer is None or layer.locked or self.canvas.read_only: return
+        self.controller.select([layer.id])
+        if layer.name == "Background":
+            self.on_canvas_background()
+        elif layer.kind.value == "image":
+            self.on_import_image(True)
+        elif layer.kind.value == "text":
+            text,ok = QInputDialog.getMultiLineText(self,tr("Edit text"),tr("Text:"),layer.spec.get("text",""))
+            if ok: self.controller.set_text(text)
+        else:
+            self.adjust_panel.setFocus()
 
     def _wire(self):
         self.home.workspace_selected.connect(self.on_workspace)
@@ -288,6 +323,7 @@ class MainWindow(QMainWindow):
         self.controller.history_changed.connect(self._update_title)
 
         self.canvas.crop_committed.connect(self.controller.crop)
+        self.canvas.quick_edit_requested.connect(self._edit_canvas_object)
         self.canvas.point_clicked.connect(self._on_canvas_point)
         self.canvas.zoom_changed.connect(
             lambda s: self.statusBar().showMessage(tr(f"Zoom {int(s * 100)}%"), 2000))

@@ -42,9 +42,14 @@ See [license issuance and activation](docs/LICENSING.md) for developer instructi
   temperature, grayscale**; **Gaussian blur & sharpen** filters; **before/after** compare (`\`).
 - **Social Media Designer** — real canvas presets (Instagram post/portrait/story, Facebook
   post/cover, YouTube thumbnail, TikTok, WhatsApp Status) using the shared engine.
-- **Templates** — 22 original, fully-editable, offline starter designs across Business,
-  Education, Restaurant and Events (incl. Somali small-business examples); every element is an
-  editable layer; customize and export PNG/JPG.
+- **Templates** — 62 original, fully-editable, offline designs: the preserved 22 across Business,
+  Education, Restaurant and Events, plus 40 across Football/Sports, Business/Marketing,
+  Ramadan/Holidays, Weddings/Celebrations, Education/Books, Announcements/Civic Information
+  and Digital Content. Category filters, search, streamed thumbnails, a large preview and
+  **Use Template** open designs in the shared editor. Double-click text, click a photo to
+  replace it, or click the background for solid/gradient controls. Photos center-crop to their
+  frame without stretching. Text, shapes and photo frames remain separate editable layers;
+  customize, save/reopen and export PNG/JPG/PDF. [View all 40 new previews](docs/template-previews).
 - **Graphic Design** — preset canvases (A3/A4 poster, flyer, business card, banner, logo) at correct
   DPI, with text and shapes; **gradient** backgrounds, **SVG import**, **align to canvas** (6 ways),
   **snapping** helpers, layer **grouping** (move together), **reorder / duplicate / opacity / lock**,

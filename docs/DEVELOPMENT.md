@@ -137,3 +137,37 @@ Local validation: 134 tests pass, including 17 licensing/watermark tests. Those 
 also pass at 200% display scaling. The source GUI smoke workflow passes with the
 payment dialog, invalid-signature check, visible export preview and free export
 watermark. Windows CI runs this same smoke workflow against the packaged app.
+
+## Forty new editable templates
+
+The original 22 catalogue entries retain their keys, names, dimensions and layer
+data unchanged; a baseline SHA-256 regression check protects the original content.
+Exactly 40 additions bring the total to 62 across 11 categories: 6 sports, 7
+business/marketing, 5 Ramadan/holidays, 5 celebrations, 5 education/books, 5
+announcements/civic information and 7 digital designs. Each has its own layout,
+editable text/shapes and at least one replaceable image slot. All images are original
+geometric illustrations generated locally; no external asset, photo or font service
+is required. Bundled code/data stays small; documentation preview PNGs are not
+included in the application package. Book/certificate designs retain print DPI.
+
+The gallery streams bounded thumbnails, prioritizes the selected design, supports
+category/search filtering and shows a large proportional preview. Custom cards wrap
+long names; the explicit Use Template button remains visible. Closing stops pending
+work. Double-click text edits it; a single photo click opens the local picker, while
+dragging keeps normal transform behavior. Replacement center-crops to the frame and
+preserves size, position and rotation. Background clicks open solid/gradient controls.
+Object context menus add Edit, Replace Image, Bring Forward, Send Backward and
+Lock/Unlock alongside existing duplicate/delete/group actions. Changes remain undoable.
+
+All 40 designs have individual previews and seven labeled contact sheets under
+`docs/template-previews`; the renderings were visually inspected and overlapping
+image frames corrected. Example prices, dates and contact details are customizable.
+Election information is neutral and explicitly requires verified official details.
+
+Validation: 178 automated tests pass. Every addition is edited, has its image replaced,
+colors changed and objects moved/resized/rotated, then saved/reopened and exported.
+The ten canvas/browser interaction tests also pass at 200% scaling. The expanded
+source smoke workflow passes and runs against the actual executable in Windows CI;
+CI uploads all 40 previews with its QA screenshots. Export watermark/offline licensing
+remains unchanged and its 17 regression tests are part of the full suite. Version
+remains 1.2.0 in development; no release or tag is created for this update.

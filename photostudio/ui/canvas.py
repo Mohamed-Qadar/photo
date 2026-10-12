@@ -21,6 +21,7 @@ class CanvasView(QGraphicsView):
     crop_committed = Signal(int, int, int, int)  # x, y, w, h in image pixels
     point_clicked = Signal(int, int)             # x, y in image pixels (tools)
     zoom_changed = Signal(float)
+    quick_edit_requested = Signal(str)
 
     MIN_SCALE = 0.02
     MAX_SCALE = 32.0
@@ -267,15 +268,16 @@ class CanvasView(QGraphicsView):
                     painter.drawLine(QPointF(0, value), QPointF(doc.width, value))
         painter.restore()
 
-    def _hit_layer(self, point):
+    def _hit_layer(self, point, include_locked=False):
         doc = self.controller.document if self.controller else None
         if doc:
             for layer in reversed(doc.layers):
-                if layer.visible and not layer.locked and layer.opacity > 0 and self.layer_rect(layer).contains(point):
+                if layer.visible and (include_locked or not layer.locked) and layer.opacity > 0 and self.layer_rect(layer).contains(point):
                     return layer
         return None
 
     def mousePressEvent(self, event):
+        self._quick_click = None
         self.setFocus()
         point = self.mapToScene(event.position().toPoint())
         if self._space or event.button() == Qt.MouseButton.MiddleButton:
@@ -291,6 +293,9 @@ class CanvasView(QGraphicsView):
         handle = self._handle_at(point)
         shift = bool(event.modifiers() & Qt.KeyboardModifier.ShiftModifier)
         layer = self._hit_layer(point)
+        front = self._hit_layer(point,include_locked=True)
+        if layer and not (front and front.locked) and not handle and not shift and (layer.kind.value == "image" or layer.name == "Background"):
+            self._quick_click = (layer.id, event.position().toPoint())
         if not handle and layer:
             ids = list(self.controller.selected_ids)
             if shift:
@@ -427,8 +432,13 @@ class CanvasView(QGraphicsView):
             self.controller.transform_selection(g["before"], after)
         self._snap_guides = []
         self.viewport().update()
+        click = getattr(self, "_quick_click", None)
+        self._quick_click = None
+        if click and event.button() == Qt.MouseButton.LeftButton and (event.position().toPoint()-click[1]).manhattanLength() <= 3:
+            self.quick_edit_requested.emit(click[0])
 
     def cancel_gesture(self):
+        self._quick_click = None
         if self._gesture:
             from ..core.commands import set_transform
             for layer in self._gesture["layers"]:

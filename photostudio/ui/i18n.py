@@ -137,6 +137,22 @@ SO = {
 }
 
 SNIPPETS = {
+    "62 editable offline designs across 11 categories.": "62 naqshadood oo internet la'aan ah, kuna kala jira 11 qaybood.",
+    "Football & Sports": "Kubadda cagta iyo ciyaaraha",
+    "Business & Marketing": "Ganacsiga iyo suuqgeynta",
+    "Ramadan & Islamic Holidays": "Ramadaan iyo ciidaha Islaamka",
+    "Weddings & Celebrations": "Aroosyada iyo dabaaldegyada",
+    "Education & Books": "Waxbarashada iyo buugaagta",
+    "Announcements & Civic Information": "Ogeysiisyada iyo xogta bulshada",
+    "Digital Content": "Nuxurka dhijitaalka ah",
+    "All categories": "Dhammaan qaybaha",
+    "Use Template": "Isticmaal naqshadda",
+    "Rendering preview…": "Samaynta horudhaca…",
+    "No matching templates": "Ma jiraan naqshado ku habboon",
+    "Double-click text to edit. Click a photo to replace it. Drag to move.": "Laba jeer guji qoraalka si aad u beddesho. Guji sawirka si aad u beddesho. Jiid si aad u dhaqaajiso.",
+    "Solid color": "Midab keliya", "Gradient": "Midab kala guuraya",
+    "Start color…": "Midabka bilowga…", "End color…": "Midabka dhammaadka…",
+    "Bring Forward": "Hore u keen", "Send Backward": "Gadaal u dir", "Edit": "Wax ka beddel",
     "Remove Watermark…": "Ka saar calaamadda biyaha…",
     "Export Preview…": "Horudhaca dhoofinta…",
     "Export Preview": "Horudhaca dhoofinta",

@@ -49,6 +49,9 @@ jobs:
       - name: Build with PyInstaller
         run: pyinstaller packaging/photostudio.spec --noconfirm
 
+      - name: Render all forty template previews
+        run: python tool/render_template_previews.py dist/qa-templates
+
       - name: Test packaged application
         env:
           QT_QPA_PLATFORM: offscreen
@@ -64,6 +67,7 @@ jobs:
           path: |
             dist/qa-source/
             dist/qa-packaged/
+            dist/qa-templates/
 
       - name: Install Inno Setup
         run: choco install innosetup --no-progress -y

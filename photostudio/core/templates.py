@@ -24,6 +24,7 @@ class Template:
     width: int
     height: int
     layers: list = field(default_factory=list)
+    dpi: int = 72
 
 
 def _bg(color):               # solid background
@@ -58,7 +59,7 @@ GREEN = (34, 160, 90, 255)
 def build(template: Template) -> Document:
     """Construct an editable Document from a Template."""
     doc = Document.blank(template.width, template.height, name=template.name,
-                         background=None)
+                         background=None, dpi=template.dpi)
     for spec in template.layers:
         if "bg" in spec:
             import numpy as np
@@ -77,13 +78,25 @@ def build(template: Template) -> Document:
                 stroke_width=spec["sw"])
             layer.offset = (spec["x"], spec["y"])
             doc.add_layer(layer)
+        elif "art" in spec:
+            from ..imaging.template_art import illustration
+            pixels = illustration(spec["art"], spec["w"], spec["h"], spec["foreground"], spec["background"])
+            layer = Layer(pixels=pixels, name=spec["name"])
+            layer.offset = (spec["x"], spec["y"])
+            doc.add_layer(layer)
         elif "text" in spec:
             layer = Document.make_text_layer(
                 spec["text"], width=spec["w"], height=spec["h"],
                 font_size=spec["size"], color=tuple(spec["color"]),
                 align=spec["align"], bold=spec["bold"])
             layer.offset = (spec["x"], spec["y"])
+            if "shadow_offset" in spec:
+                layer.spec["shadow_offset"] = spec["shadow_offset"]
             doc.add_layer(layer)
+        if "name" in spec and doc.layers:
+            doc.layers[-1].name = spec["name"]
+        if "rotation" in spec and doc.layers:
+            doc.layers[-1].rotation = spec["rotation"]
     doc.active_layer_id = doc.layers[-1].id if doc.layers else None
     return doc
 
@@ -271,6 +284,12 @@ TEMPLATES: list[Template] = [
               120, 420, 840, 260, 50, INK),
     ]),
 ]
+
+
+EXISTING_KEYS = tuple(t.key for t in TEMPLATES)
+from .template_collection import new_templates
+NEW_TEMPLATES = new_templates(Template)
+TEMPLATES.extend(NEW_TEMPLATES)
 
 
 def by_category() -> dict[str, list[Template]]:

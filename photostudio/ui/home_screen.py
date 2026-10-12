@@ -21,7 +21,7 @@ TILES = [
     ("graphic", "Graphic Design", "Posters, flyers, cards, banners, logos.", True),
     ("custom", "Custom Canvas", "Pick exact width, height and DPI.", True),
     ("open_project", "Open Project", "Resume a saved .pstudio project.", True),
-    ("templates", "Templates", "20+ editable offline starter designs.", True),
+    ("templates", "Templates", "62 editable offline designs across 11 categories.", True),
     ("beauty", "Beauty Studio", "Skin smoothing, spot removal, background blur.", True),
     ("passport", "Passport & ID Photo", "Sizes, background swap, print sheets, PDF.", True),
 ]

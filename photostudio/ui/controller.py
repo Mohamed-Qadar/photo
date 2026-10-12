@@ -110,6 +110,17 @@ class EditorController(QObject):
             if layer is None or layer.pixels is None:
                 return
             w, h = layer.width, layer.height
+            # Center-crop to the existing frame, keeping photo proportions intact.
+            source_h,source_w = pixels.shape[:2]
+            target_ratio = w/h
+            if source_w/source_h > target_ratio:
+                crop_w = max(1,round(source_h*target_ratio))
+                left = (source_w-crop_w)//2
+                pixels = pixels[:,left:left+crop_w].copy()
+            else:
+                crop_h = max(1,round(source_w/target_ratio))
+                top = (source_h-crop_h)//2
+                pixels = pixels[top:top+crop_h].copy()
             self._push(commands.CompositeCommand([
                 commands._PixelSwapCommand(self.document, layer, pixels, False, "Replace Image"),
                 commands.SetLayerPropertyCommand(layer, "scale_x", layer.scale_x*w/pixels.shape[1]),
@@ -138,6 +149,23 @@ class EditorController(QObject):
             self._push(commands.AddLayerCommand(self.document, Layer(pixels=px, name="Background"), 0))
 
     # ---- persistence --------------------------------------------------
+    def set_canvas_gradient(self, start, end, angle=90):
+        if self.document is None: return
+        existing = next((l for l in self.document.layers if l.name == "Background"), None)
+        if existing and existing.locked:
+            self.processing_error.emit("Unlock the background layer before changing its colour.")
+            return
+        layer = Document.make_gradient_layer(self.document.width,self.document.height,
+                                             [[0,list(start)],[1,list(end)]],angle=angle,name="Background")
+        if existing:
+            layer.id = existing.id
+            index = self.document.index_of(existing.id)
+            self._push(commands.CompositeCommand([
+                commands.RemoveLayerCommand(self.document,existing),
+                commands.AddLayerCommand(self.document,layer,index)],"Canvas Gradient"))
+        else:
+            self._push(commands.AddLayerCommand(self.document,layer,0))
+
     def save_project(self, path: Optional[str | Path] = None):
         if self.document is None:
             return

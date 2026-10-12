@@ -9,7 +9,8 @@ NumPy, Pillow and OpenCV. No server, account or network is required to edit.
 - `core/commands.py`, `history.py`: undoable operations and command coalescing.
 - `core/pipeline.py`: full-resolution RGBA compositing with tone adjustments.
 - `core/project_io.py`: ZIP projects, editable specs and raster PNGs; PNG/JPG/PDF export.
-- `core/templates.py`, `presets.py`: 22 offline templates and social/print canvases.
+- `core/templates.py`, `template_collection.py`, `presets.py`: 62 offline templates and social/print canvases.
+- `imaging/template_art.py`: original locally generated illustrations in replaceable image frames.
 - `core/arrange.py`, `passport.py`: alignment/snapping and physical print layouts.
 - `imaging/`: Qt-free adjustments, filters, portrait processing, rendering and IO.
 - `ui/controller.py`: editing intents, locking, history, dirty state and large filter jobs.
