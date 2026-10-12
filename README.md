@@ -46,7 +46,6 @@ watermark-removal license. No account, subscription or online activation is need
 Payment: EVC Plus **0611354800**. After payment, send the confirmation SMS and
 PhotoStudio Device ID to Mohamed at **mohamedqadar280@gmail.com** or WhatsApp
 **+252611354800**. Mohamed verifies payment manually and supplies a signed key.
-See [license issuance and activation](docs/LICENSING.md) for developer instructions.
 
 ## Features
 

@@ -27,6 +27,7 @@ secrets.*
 *.pfx
 *.pslicense
 *.issuance.jsonl
+docs/LICENSING.md
 
 # --- Local user data / editor state ---
 *.pstudio

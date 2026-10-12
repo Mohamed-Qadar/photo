@@ -131,7 +131,7 @@ content and editor rendering remain unchanged. Signed activation is verified wit
 Ed25519 entirely offline and persisted atomically. The private signing credential
 is outside the checkout; only its public verification key is bundled. A separate
 developer CLI issues keys after payment verification and keeps issuance records
-outside the repository. See LICENSING.md for commands and practical offline limits.
+outside the repository. Developer license issuance instructions are kept locally.
 
 Local validation: 134 tests pass, including 17 licensing/watermark tests. Those 17
 also pass at 200% display scaling. The source GUI smoke workflow passes with the
