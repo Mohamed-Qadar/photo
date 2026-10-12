@@ -6,7 +6,7 @@ from pathlib import Path
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (QDockWidget, QFileDialog, QInputDialog, QMainWindow,
-                               QMessageBox, QStackedWidget, QStatusBar, QWidget, QScrollArea)
+                               QMessageBox, QStackedWidget, QStatusBar, QWidget, QScrollArea, QToolBar, QColorDialog)
 
 from .. import (__app_name__, __author__, __author_specialization__,
                 __author_title__, __contact_email__, __github_url__, __version__)
@@ -46,6 +46,7 @@ class MainWindow(QMainWindow):
 
         self._build_docks()
         self._build_menus()
+        self._build_tools()
         self._wire()
         self.apply_theme(dark=True)
         self._show_home()
@@ -90,6 +91,8 @@ class MainWindow(QMainWindow):
         m_file.addAction(self._act("New Project…", self.on_new, "Ctrl+N"))
         m_file.addAction(self._act("Open Image…", self.on_open_image, "Ctrl+O"))
         m_file.addAction(self._act("Open Project…", self.on_open_project, "Ctrl+Shift+O"))
+        m_file.addAction(self._act("Import Image Layer…", self.on_import_image, "Ctrl+Shift+I"))
+        m_file.addAction(self._act("Replace Selected Image…", lambda: self.on_import_image(True)))
         m_file.addAction(self._act("Import SVG…", self.on_import_svg))
         m_file.addSeparator()
         self.act_save = self._act("Save Project", self.on_save, "Ctrl+S")
@@ -183,6 +186,66 @@ class MainWindow(QMainWindow):
         m_help.addAction(self._act("Settings…", self.on_settings))
         m_help.addAction(self._act("About", self.on_about))
 
+    def _build_tools(self):
+        self.tools = QToolBar("Tools", self)
+        self.tools.setMovable(False)
+        self.tools.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextOnly)
+        self.addToolBar(Qt.ToolBarArea.LeftToolBarArea, self.tools)
+        for title, slot, shortcut in [
+            ("Select / Move", self.canvas.cancel_gesture, "V"),
+            ("Crop", self.on_begin_crop, "C"),
+            ("Text", self.on_add_text, None),
+            ("Shape", lambda: self.controller.add_shape(), None),
+            ("Image", self.on_import_image, None),
+            ("Background", self.on_canvas_background, None),
+            ("Templates", self.on_pick_template, None),
+            ("Rotate ↻", lambda: self.controller.rotate_90(), None),
+            ("Fit canvas", self.canvas.fit_to_window, None)]:
+            action = self._act(title, slot, shortcut)
+            action.setToolTip(title + (f" ({shortcut})" if shortcut else ""))
+            self.tools.addAction(action)
+        self.snap_action = QAction("Snapping", self)
+        self.snap_action.setCheckable(True)
+        self.snap_action.setChecked(True)
+        self.snap_action.setToolTip("Snap to canvas and object edges; Space + drag to pan")
+        self.snap_action.toggled.connect(lambda value: setattr(self.canvas, "snap_enabled", value))
+        self.tools.addAction(self.snap_action)
+        self.quick = QToolBar("Project", self)
+        self.quick.setMovable(False)
+        self.addToolBar(Qt.ToolBarArea.TopToolBarArea, self.quick)
+        for action in (self.act_save, self.act_export, self.act_undo, self.act_redo, self.act_compare):
+            self.quick.addAction(action)
+        self.canvas.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.canvas.customContextMenuRequested.connect(self._canvas_menu)
+
+    def _canvas_menu(self, pos):
+        from PySide6.QtWidgets import QMenu
+        menu = QMenu(self)
+        for label, slot in [("Duplicate selected", self.controller.duplicate_selection),
+                            ("Delete selected", self.controller.delete_selection),
+                            ("Group selected", lambda: self.controller.group_selected(self.controller.selected_ids)),
+                            ("Ungroup", self.controller.ungroup_active),
+                            ("Add text", self.on_add_text), ("Add shape", lambda: self.controller.add_shape())]:
+            menu.addAction(self._act(label, slot))
+        menu.exec(self.canvas.mapToGlobal(pos))
+
+    def on_import_image(self, replace=False):
+        if self.controller.document is None:
+            return
+        path, _ = QFileDialog.getOpenFileName(self, "Replace image" if replace else "Import image layer", "", IMAGE_FILTER)
+        if path:
+            try:
+                self.controller.import_image(path, replace=bool(replace))
+            except Exception as exc:
+                self._error("Could not import image", exc)
+
+    def on_canvas_background(self):
+        if self.controller.document is None:
+            return
+        color = QColorDialog.getColor(parent=self, title="Canvas background")
+        if color.isValid():
+            self.controller.set_canvas_background([color.red(), color.green(), color.blue(), 255])
+
     def _wire(self):
         self.home.workspace_selected.connect(self.on_workspace)
         self.controller.processing_error.connect(lambda msg: self.statusBar().showMessage(msg, 8000))
@@ -212,12 +275,16 @@ class MainWindow(QMainWindow):
     def _show_home(self):
         self._stack.setCurrentWidget(self.home)
         self._set_docks_visible(False)          # no empty panels on the home screen
+        self.tools.hide()
+        self.quick.hide()
         self.menuBar().setVisible(True)
         self._update_actions()
 
     def _show_canvas(self):
         self._stack.setCurrentWidget(self.canvas)
         self._set_docks_visible(True)
+        self.tools.show()
+        self.quick.show()
 
     # ---- workspace routing -------------------------------------------
     def on_workspace(self, key: str):
@@ -244,13 +311,10 @@ class MainWindow(QMainWindow):
                     "Sizes are examples; verify official requirements.", 8000)
 
     def on_pick_template(self):
-        from ..core import templates
-        items = [f"{t.category} — {t.name}" for t in templates.TEMPLATES]
-        keys = [t.key for t in templates.TEMPLATES]
-        choice, ok = QInputDialog.getItem(self, "Templates", "Choose a template:",
-                                          items, 0, False)
-        if ok and choice and self._confirm_replace():
-            self.controller.open_template(keys[items.index(choice)])
+        from .template_picker import TemplatePicker
+        picker = TemplatePicker(self)
+        if picker.exec() and picker.selected_key() and self._confirm_replace():
+            self.controller.open_template(picker.selected_key())
 
     def on_pick_preset(self, kind: str):
         from ..core.presets import SOCIAL_PRESETS, GRAPHIC_PRESETS

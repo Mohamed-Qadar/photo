@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Optional
+import copy
 
 import numpy as np
 
@@ -329,15 +330,19 @@ class SetTextPropertyCommand(Command):
     def __init__(self, layer: Layer, key: str, value):
         self.layer = layer
         self.key = key
-        self.old = layer.spec.get(key)
-        self.new = value
+        self.existed = key in layer.spec
+        self.old = copy.deepcopy(layer.spec.get(key))
+        self.new = copy.deepcopy(value)
         self.label = f"Text {key}"
 
     def do(self) -> None:
         self.layer.spec[self.key] = self.new
 
     def undo(self) -> None:
-        self.layer.spec[self.key] = self.old
+        if self.existed:
+            self.layer.spec[self.key] = self.old
+        else:
+            self.layer.spec.pop(self.key, None)
 
 
 class MoveGroupCommand(Command):

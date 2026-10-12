@@ -4,6 +4,14 @@ import numpy as np
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def avoid_modal_teardown(monkeypatch):
+    # Tests of prompts override this explicitly. Other tests must never block
+    # pytest-qt's window teardown on an interactive save/discard dialog.
+    from PySide6.QtWidgets import QMessageBox
+    monkeypatch.setattr(QMessageBox, "warning", lambda *args: QMessageBox.StandardButton.Discard)
+
+
 @pytest.fixture
 def rgba_gradient():
     """A 64x48 RGBA test image with a horizontal gradient and full alpha."""

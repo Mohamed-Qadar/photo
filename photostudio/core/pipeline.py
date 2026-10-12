@@ -6,6 +6,8 @@ bottom to top honouring opacity and blend mode. No Qt imports.
 from __future__ import annotations
 
 import numpy as np
+import copy
+import math
 
 from .document import BlendMode, Document, Layer
 from ..imaging.adjustments import apply_adjustments
@@ -63,3 +65,33 @@ def composite(document: Document, use_adjustments: bool = True) -> np.ndarray:
             continue
         _composite_layer(canvas, layer, use_adjustments=use_adjustments)
     return np.clip(canvas, 0, 255).astype(np.uint8)
+
+
+def preview_document(document: Document, max_side: int = 1600) -> Document:
+    """Bounded preview model. Source arrays/specs remain unchanged."""
+    from ..imaging.transforms import resize
+    ratio = min(1.0, max_side / max(document.width, document.height))
+    if ratio == 1:
+        return document
+    doc = copy.copy(document)
+    doc.width, doc.height = max(1, round(doc.width*ratio)), max(1, round(doc.height*ratio))
+    doc.layers = []
+    for layer in document.layers:
+        item = copy.copy(layer)
+        item.offset = (round(layer.offset[0]*ratio), round(layer.offset[1]*ratio))
+        # Render at preview resolution before applying editable scale and rotation.
+        w, h = max(1, round(layer.width*ratio)), max(1, round(layer.height*ratio))
+        if layer.pixels is not None:
+            item.pixels = resize(layer.pixels, w, h)
+        else:
+            item.spec = copy.deepcopy(layer.spec)
+            item.spec.update(width=w, height=h)
+            for key in ("font_size", "stroke_width", "outline_width", "shadow_offset"):
+                if key in item.spec:
+                    item.spec[key] = max(1 if key == "font_size" else 0, round(item.spec[key]*ratio))
+        doc.layers.append(item)
+    return doc
+
+
+def composite_preview(document, use_adjustments=True, max_side=1600):
+    return composite(preview_document(document, max_side), use_adjustments=use_adjustments)

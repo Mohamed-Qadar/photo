@@ -92,6 +92,14 @@ def build(template: Template) -> Document:
 # Template catalogue (22 originals across 4 categories).
 # ----------------------------------------------------------------------------
 TEMPLATES: list[Template] = [
+    Template("biz_phone", "Phone Shop", "Business", 1080, 1080, [
+        _grad([[0, list(INK)], [1, list(BLUE)]], 45),
+        _text("DUKAANKA TELEFOONNADA", 70, 100, 940, 180, 64, WHITE, bold=True),
+        _shape("rounded", 390, 340, 300, 430, fill=WHITE),
+        _shape("rounded", 420, 380, 240, 300, fill=TEAL),
+        _text("Tayo sare · Qiimo fiican", 80, 820, 920, 90, 48, GOLD),
+        _text("Wac: 061-XXXXXXX", 80, 950, 920, 60, 36, WHITE),
+    ]),
     # ----- Business advertisements (Instagram 1080x1080) -----
     Template("biz_sale", "Big Sale Advert", "Business", 1080, 1080, [
         _grad([[0, list(BLUE)], [1, list(INK)]], 120),

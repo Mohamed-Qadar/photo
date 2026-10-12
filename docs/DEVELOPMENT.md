@@ -49,6 +49,19 @@ properties dock scrolls on smaller screens. System fonts resolve offline; the
 renderer stays independent of Qt. Unicode Somali text and styled object specs
 remain editable after project save and match full-resolution PNG exports.
 
+## Phase 4 — design workflows
+
+The editor has a left tools bar and top project controls, visible snapping,
+canvas context actions, image-layer import/replacement and background colour
+settings. Replacement retains the existing object's displayed dimensions and is
+undoable. Gradient template backgrounds can be changed without adding an invisible
+layer behind them. A searchable gallery renders previews in a background worker.
+
+The baseline catalogue actually contained 21 designs despite documenting 22. An
+original editable Somali phone-shop design brings the catalogue to 22. Bounded
+preview compositing preserves source pixels and text specs. Property undo now
+removes formerly absent spec fields instead of leaving invalid null values.
+
 Runtime, installer and package metadata use version 1.2.0. The Phase 1 report is
 historical. The source tree has progressed beyond that initial delivery. Autosave
 and the interactive object canvas are subsequent phases, not baseline capabilities.

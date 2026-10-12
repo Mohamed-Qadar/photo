@@ -93,6 +93,43 @@ class EditorController(QObject):
         layer = Layer(pixels=pixels, name=Path(path).stem)
         self._push(commands.AddLayerCommand(self.document, layer))
 
+    def import_image(self, path, replace=False):
+        if self.document is None:
+            return
+        pixels = img_io.load_image(path)
+        from ..core.document import Layer
+        if replace:
+            layer = self._active()
+            if layer is None or layer.pixels is None:
+                return
+            w, h = layer.width, layer.height
+            self._push(commands.CompositeCommand([
+                commands._PixelSwapCommand(self.document, layer, pixels, False, "Replace Image"),
+                commands.SetLayerPropertyCommand(layer, "scale_x", layer.scale_x*w/pixels.shape[1]),
+                commands.SetLayerPropertyCommand(layer, "scale_y", layer.scale_y*h/pixels.shape[0])], "Replace Image"))
+        else:
+            layer = Layer(pixels=pixels, name=Path(path).stem)
+            ratio = min(1, self.document.width/layer.width, self.document.height/layer.height)
+            layer.scale_x = layer.scale_y = ratio
+            self._push(commands.AddLayerCommand(self.document, layer))
+
+    def set_canvas_background(self, color):
+        if self.document is None:
+            return
+        from ..core.document import Layer
+        px = np.full((self.document.height, self.document.width, 4), color, np.uint8)
+        existing = next((l for l in self.document.layers if l.name == "Background"), None)
+        if existing and existing.locked:
+            self.processing_error.emit("Unlock the background layer before changing its colour.")
+        elif existing and existing.pixels is not None:
+            self._push(commands._PixelSwapCommand(self.document, existing, px, False, "Canvas Background"))
+        elif existing and existing.kind.value == "shape":
+            spec = {"shape": "rectangle", "width": self.document.width,
+                    "height": self.document.height, "fill": list(color)}
+            self._push(commands.SetLayerPropertyCommand(existing, "spec", spec))
+        else:
+            self._push(commands.AddLayerCommand(self.document, Layer(pixels=px, name="Background"), 0))
+
     # ---- persistence --------------------------------------------------
     def save_project(self, path: Optional[str | Path] = None):
         if self.document is None:
@@ -266,7 +303,13 @@ class EditorController(QObject):
     def set_object_property(self, key, value):
         layer = self._active()
         if layer and layer.is_object:
-            self._push(commands.SetTextPropertyCommand(layer, key, value))
+            if key == "fill" and layer.spec.get("gradient"):
+                spec = dict(layer.spec)
+                spec.pop("gradient", None)
+                spec[key] = value
+                self._push(commands.SetLayerPropertyCommand(layer, "spec", spec))
+            else:
+                self._push(commands.SetTextPropertyCommand(layer, key, value))
 
     def rename_layer(self, layer_id, name):
         layer = self.document.layer_by_id(layer_id) if self.document else None
