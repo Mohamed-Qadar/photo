@@ -2,9 +2,19 @@
 
 **Offline-first photo & design studio for Windows 10/11 (x64).**
 
-> **Version 1.2.0 — development build.**
-> Interactive photo and design workflows run offline. Windows test installers are
-> built by GitHub Actions; a public release requires maintainer approval.
+> **Version 1.2.0 — public pre-release for Windows 10/11 (x64).**
+> Interactive photo and design workflows run offline.
+
+## Download for Windows
+
+[**Download PhotoStudio Setup (.exe)**](https://github.com/Mohamed-Qadar/photo/releases/download/v1.2.0/PhotoStudio-Setup.exe)
+
+Download the installer, run it, and follow the setup steps. A GitHub account is not
+required. This is a pre-release build; the Windows build, automated tests and
+packaged application workflows passed before publication.
+
+[Release details](https://github.com/Mohamed-Qadar/photo/releases/tag/v1.2.0) ·
+[SHA-256 checksum](https://github.com/Mohamed-Qadar/photo/releases/download/v1.2.0/PhotoStudio-Setup.exe.sha256)
 
 Built with Python 3.11, PySide6 / Qt 6, NumPy, Pillow and OpenCV.
 
@@ -102,13 +112,9 @@ Source build, captured with the real Qt application:
 
 ## Download
 
-The latest tested installer and checksum are available as **PhotoStudio-Setup**
-artifacts on the [Windows Build runs](https://github.com/Mohamed-Qadar/photo/actions/workflows/windows-build.yml).
-The **PhotoStudio-QA** artifact includes source and packaged workflow screenshots.
-GitHub requires signing in to download Actions artifacts.
-
-Approved pre-built Windows releases are published on the
-[**Releases**](https://github.com/Mohamed-Qadar/photo/releases) page when available:
+The public installer and checksum are available on the
+[**v1.2.0 release page**](https://github.com/Mohamed-Qadar/photo/releases/tag/v1.2.0)
+without signing in to GitHub:
 
 - `PhotoStudio-Setup.exe` — installer (no Python required)
 - `PhotoStudio-Setup.exe.sha256` — checksum to verify the download
@@ -120,6 +126,10 @@ Get-FileHash PhotoStudio-Setup.exe -Algorithm SHA256
 ```
 
 > Releases during development are published as **pre-releases** and are for testing only.
+
+Developer test installers and the **PhotoStudio-QA** screenshots remain available
+as artifacts on the [Windows Build runs](https://github.com/Mohamed-Qadar/photo/actions/workflows/windows-build.yml).
+Downloading Actions artifacts requires signing in to GitHub.
 
 ## Installation (end users)
 
@@ -193,7 +203,8 @@ Processing and Computer Vision.**
 
 ## Version history
 
-- **1.2.0** (in development) — Interactive canvas, richer layers/properties, English/Somali UI,
+- **1.2.0** (public pre-release) — 62 editable templates, offline watermark-removal
+  activation, interactive canvas, richer layers/properties, English/Somali UI,
   autosave/recovery, atomic persistence and background previews. See docs/DEVELOPMENT.md. Milestone F: Passport & ID — example size presets, background
   replacement, face guides, 10×15/A4 print sheets with accurate DPI & multi-photo layout, PDF export
   (sizes are examples, not official specs). Milestone E: Beauty Studio — skin smoothing (bilateral), portrait
