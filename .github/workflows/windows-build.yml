@@ -1,0 +1,103 @@
+name: Windows Build
+
+# Builds, tests and packages PhotoStudio on a Windows runner.
+# - Every push / PR / manual run: tests + build + upload a downloadable test artifact.
+# - Pushing a version tag (v*) additionally publishes a GitHub *pre-release* with the
+#   installer + checksum. Promotion to a stable release is done manually, after approval.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r dev-requirements.txt
+          pip install pyinstaller==6.11.1
+
+      - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest -v
+
+      - name: Build with PyInstaller
+        run: pyinstaller packaging/photostudio.spec --noconfirm
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "installer\photostudio.iss"
+
+      - name: Generate SHA-256 checksum
+        shell: pwsh
+        run: |
+          $exe = "dist\installer\PhotoStudio-Setup.exe"
+          $hash = (Get-FileHash $exe -Algorithm SHA256).Hash.ToLower()
+          "$hash *PhotoStudio-Setup.exe" | Out-File -Encoding ascii "$exe.sha256"
+          Write-Host "SHA-256: $hash"
+
+      - name: Upload test artifact (installer + checksum)
+        uses: actions/upload-artifact@v4
+        with:
+          name: PhotoStudio-Setup
+          path: |
+            dist/installer/PhotoStudio-Setup.exe
+            dist/installer/PhotoStudio-Setup.exe.sha256
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    # Only on an explicit version tag. Published as a PRE-RELEASE (not a stable
+    # release) so an untested or in-development build is never presented as final.
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    steps:
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: PhotoStudio-Setup
+          path: dist/installer
+
+      - name: Publish pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          prerelease: true
+          name: "PhotoStudio ${{ github.ref_name }} (pre-release)"
+          body: |
+            PhotoStudio ${{ github.ref_name }} — pre-release build for testing.
+
+            Developed by Eng. Mohamed Ibrahim Abdi — Computer Engineer, specializing in
+            Natural Language Processing and Computer Vision.
+            Contact: mohaqadar280@gmail.com
+
+            This is an automated build. Verify the SHA-256 checksum before running:
+            `Get-FileHash PhotoStudio-Setup.exe -Algorithm SHA256`
+
+            Status: in active development (Phase 1 vertical slice). Not a stable release.
+          files: |
+            dist/installer/PhotoStudio-Setup.exe
+            dist/installer/PhotoStudio-Setup.exe.sha256

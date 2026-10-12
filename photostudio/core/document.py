@@ -1,0 +1,156 @@
+"""Document and Layer model — the editable, non-destructive project state.
+
+Pure Python + NumPy. No Qt imports (see ARCHITECTURE.md §11).
+Pixels are always H x W x 4 uint8 RGBA, non-premultiplied, sRGB.
+"""
+from __future__ import annotations
+
+import uuid
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Optional
+
+import numpy as np
+
+
+class LayerKind(str, Enum):
+    IMAGE = "image"
+    TEXT = "text"
+    SHAPE = "shape"
+    ADJUSTMENT = "adjustment"
+
+
+class BlendMode(str, Enum):
+    NORMAL = "normal"
+    MULTIPLY = "multiply"
+    SCREEN = "screen"
+
+
+#: Adjustment parameters understood by the pipeline, with their neutral defaults.
+#: Keeping these as parameters (not baked into pixels) is what makes editing non-destructive.
+ADJUSTMENT_DEFAULTS: dict[str, float] = {
+    "brightness": 0.0,   # -1.0 .. 1.0  (additive, scaled)
+    "contrast": 0.0,     # -1.0 .. 1.0  (around mid-gray)
+}
+
+
+def new_id() -> str:
+    return uuid.uuid4().hex[:12]
+
+
+def blank_pixels(width: int, height: int) -> np.ndarray:
+    """Transparent RGBA canvas."""
+    return np.zeros((height, width, 4), dtype=np.uint8)
+
+
+@dataclass
+class Layer:
+    pixels: np.ndarray                      # H x W x 4 uint8 RGBA
+    name: str = "Layer"
+    kind: LayerKind = LayerKind.IMAGE
+    id: str = field(default_factory=new_id)
+    offset: tuple[int, int] = (0, 0)        # (x, y) top-left placement on the canvas
+    visible: bool = True
+    opacity: float = 1.0                    # 0..1
+    blend: BlendMode = BlendMode.NORMAL
+    adjustments: dict[str, float] = field(default_factory=lambda: dict(ADJUSTMENT_DEFAULTS))
+
+    def __post_init__(self) -> None:
+        self._validate_pixels(self.pixels)
+        # Ensure every known adjustment key exists so the UI can bind safely.
+        merged = dict(ADJUSTMENT_DEFAULTS)
+        merged.update(self.adjustments or {})
+        self.adjustments = merged
+        self.opacity = float(np.clip(self.opacity, 0.0, 1.0))
+
+    @staticmethod
+    def _validate_pixels(pixels: np.ndarray) -> None:
+        if not isinstance(pixels, np.ndarray):
+            raise TypeError("Layer.pixels must be a numpy ndarray")
+        if pixels.ndim != 3 or pixels.shape[2] != 4:
+            raise ValueError("Layer.pixels must be H x W x 4 (RGBA)")
+        if pixels.dtype != np.uint8:
+            raise ValueError("Layer.pixels must be uint8")
+
+    @property
+    def width(self) -> int:
+        return int(self.pixels.shape[1])
+
+    @property
+    def height(self) -> int:
+        return int(self.pixels.shape[0])
+
+    def has_edits(self) -> bool:
+        return any(abs(self.adjustments.get(k, d) - d) > 1e-9
+                   for k, d in ADJUSTMENT_DEFAULTS.items())
+
+    def copy(self) -> "Layer":
+        return Layer(
+            pixels=self.pixels.copy(),
+            name=self.name,
+            kind=self.kind,
+            id=self.id,
+            offset=self.offset,
+            visible=self.visible,
+            opacity=self.opacity,
+            blend=self.blend,
+            adjustments=dict(self.adjustments),
+        )
+
+
+@dataclass
+class Document:
+    width: int
+    height: int
+    dpi: int = 72
+    layers: list[Layer] = field(default_factory=list)
+    active_layer_id: Optional[str] = None
+    name: str = "Untitled"
+
+    def __post_init__(self) -> None:
+        if self.width <= 0 or self.height <= 0:
+            raise ValueError("Document dimensions must be positive")
+        if self.active_layer_id is None and self.layers:
+            self.active_layer_id = self.layers[-1].id
+
+    # ---- layer access -------------------------------------------------
+    @classmethod
+    def from_image(cls, pixels: np.ndarray, name: str = "Untitled", dpi: int = 72) -> "Document":
+        """Build a single-layer document from an RGBA image array."""
+        Layer._validate_pixels(pixels)
+        h, w = pixels.shape[:2]
+        layer = Layer(pixels=pixels, name="Background")
+        return cls(width=w, height=h, dpi=dpi, layers=[layer],
+                   active_layer_id=layer.id, name=name)
+
+    def layer_by_id(self, layer_id: str) -> Optional[Layer]:
+        for layer in self.layers:
+            if layer.id == layer_id:
+                return layer
+        return None
+
+    def index_of(self, layer_id: str) -> int:
+        for i, layer in enumerate(self.layers):
+            if layer.id == layer_id:
+                return i
+        raise KeyError(layer_id)
+
+    @property
+    def active_layer(self) -> Optional[Layer]:
+        if self.active_layer_id is None:
+            return None
+        return self.layer_by_id(self.active_layer_id)
+
+    def add_layer(self, layer: Layer, index: Optional[int] = None) -> None:
+        if index is None:
+            self.layers.append(layer)
+        else:
+            self.layers.insert(index, layer)
+        self.active_layer_id = layer.id
+
+    def remove_layer(self, layer_id: str) -> Layer:
+        idx = self.index_of(layer_id)
+        layer = self.layers.pop(idx)
+        if self.active_layer_id == layer_id:
+            self.active_layer_id = self.layers[-1].id if self.layers else None
+        return layer

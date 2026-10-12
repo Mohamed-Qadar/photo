@@ -1,0 +1,6 @@
+# Development & testing dependencies (not needed to run the app).
+# Install with:  .venv\Scripts\python.exe -m pip install -r dev-requirements.txt
+-r requirements.txt
+
+pytest==8.3.4
+pytest-qt==4.4.0

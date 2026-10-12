@@ -1,0 +1,39 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+
+# --- Build / packaging output ---
+build/
+dist/
+*.spec.bak
+
+# --- Secrets / credentials / local config ---
+*.env
+.env
+.env.*
+secrets.*
+*.pem
+*.key
+*.pfx
+
+# --- Local user data / editor state ---
+*.pstudio
+!tests/**/*.pstudio
+.idea/
+.vscode/
+*.log
+
+# --- OS cruft ---
+Thumbs.db
+desktop.ini
+.DS_Store
