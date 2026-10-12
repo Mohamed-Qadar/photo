@@ -19,9 +19,11 @@ def _blend(base_rgb: np.ndarray, top_rgb: np.ndarray, mode: BlendMode) -> np.nda
     return top_rgb  # NORMAL
 
 
-def _composite_layer(canvas: np.ndarray, layer: Layer) -> None:
+def _composite_layer(canvas: np.ndarray, layer: Layer, use_adjustments: bool = True) -> None:
     """Blend one layer into `canvas` (float32 RGBA, in place)."""
-    src = apply_adjustments(layer.render(), layer.adjustments).astype(np.float32)
+    base = layer.render()
+    src = (apply_adjustments(base, layer.adjustments) if use_adjustments
+           else base).astype(np.float32)
     ox, oy = layer.offset
     ch, cw = canvas.shape[:2]
     lh, lw = src.shape[:2]
@@ -49,11 +51,15 @@ def _composite_layer(canvas: np.ndarray, layer: Layer) -> None:
     dst[..., 3:4] = out_a * 255.0
 
 
-def composite(document: Document) -> np.ndarray:
-    """Return the flattened document as H x W x 4 uint8 RGBA."""
+def composite(document: Document, use_adjustments: bool = True) -> np.ndarray:
+    """Return the flattened document as H x W x 4 uint8 RGBA.
+
+    use_adjustments=False renders the "before" image (raw pixels, no tone edits)
+    for before/after comparison.
+    """
     canvas = np.zeros((document.height, document.width, 4), dtype=np.float32)
     for layer in document.layers:
         if not layer.visible or layer.opacity <= 0.0:
             continue
-        _composite_layer(canvas, layer)
+        _composite_layer(canvas, layer, use_adjustments=use_adjustments)
     return np.clip(canvas, 0, 255).astype(np.uint8)

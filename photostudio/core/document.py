@@ -31,6 +31,10 @@ class BlendMode(str, Enum):
 ADJUSTMENT_DEFAULTS: dict[str, float] = {
     "brightness": 0.0,   # -1.0 .. 1.0  (additive, scaled)
     "contrast": 0.0,     # -1.0 .. 1.0  (around mid-gray)
+    "exposure": 0.0,     # -1.0 .. 1.0  (multiplicative stops)
+    "saturation": 0.0,   # -1.0 .. 1.0  (-1 = grayscale, +1 = boosted)
+    "temperature": 0.0,  # -1.0 .. 1.0  (- cool/blue, + warm/orange)
+    "grayscale": 0.0,    # 0.0 .. 1.0   (mix toward luma)
 }
 
 

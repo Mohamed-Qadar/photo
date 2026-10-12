@@ -26,7 +26,8 @@ native `.pstudio` project format.
   visibility, locking and blend mode.
 - **New Design / Custom Canvas** — blank canvas at any size, add editable text and shapes.
 - **Photo Editor** — open an image (JPG / PNG / WebP / TIFF / BMP), zoom/pan, crop (drag), rotate
-  90° CW/CCW, flip H/V, resize, non-destructive brightness & contrast.
+  90° CW/CCW, flip H/V, resize; non-destructive **exposure, brightness, contrast, saturation,
+  temperature, grayscale**; **Gaussian blur & sharpen** filters; **before/after** compare (`\`).
 - **Social Media Designer** — real canvas presets (Instagram post/portrait/story, Facebook
   post/cover, YouTube thumbnail, TikTok, WhatsApp Status) using the shared engine.
 - **Graphic Design** — preset canvases (A3/A4 poster, flyer, business card, banner, logo) at correct
@@ -136,7 +137,9 @@ Processing and Computer Vision.**
 
 ## Version history
 
-- **1.2.0** (in development) — Milestone A: shared design engine with editable **text & shape**
+- **1.2.0** (in development) — Milestone B: extended non-destructive adjustments (exposure,
+  saturation, temperature, grayscale) with a Reset, Gaussian blur & sharpen filters, and
+  before/after compare. Milestone A: shared design engine with editable **text & shape**
   object layers (render, composite, `.pstudio` persistence, undoable add/move/edit/lock); redesigned
   home screen (hero + tiles, no empty panels / dark rectangles); Social Media & Graphic Design
   workspaces backed by the shared engine with real canvas presets; Insert menu (text/shapes);

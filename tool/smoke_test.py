@@ -46,7 +46,14 @@ def main() -> int:
     import numpy as np
     from photostudio.core.document import Document
     c._attach(Document.from_image(np.full((120, 160, 4), 128, np.uint8), name="img"))
-    c.set_adjustment("brightness", 0.3)
+    for key in ("exposure", "brightness", "contrast", "saturation", "temperature"):
+        c.set_adjustment(key, 0.2)
+    c.set_adjustment("grayscale", 0.4)
+    c.apply_filter("Gaussian Blur")
+    c.apply_filter("Sharpen")
+    before = c.render(use_adjustments=False)
+    after = c.render(use_adjustments=True)
+    assert before is not None and after is not None
     c.crop(10, 10, 100, 80)
     c.rotate_90(1)
 

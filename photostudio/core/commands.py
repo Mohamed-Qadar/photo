@@ -197,6 +197,16 @@ class SetTextCommand(Command):
         return False
 
 
+class FilterCommand(_PixelSwapCommand):
+    """Apply a spatial filter function to a raster layer's pixels (undoable)."""
+
+    def __init__(self, document: Document, layer: Layer, func, label: str, **kwargs):
+        if layer.pixels is None:
+            raise ValueError("Filters apply to raster layers only")
+        result = func(layer.pixels, **kwargs)
+        super().__init__(document, layer, result, resize_canvas=False, label=label)
+
+
 class SetLayerVisibilityCommand(Command):
     def __init__(self, layer: Layer, visible: bool):
         self.layer = layer

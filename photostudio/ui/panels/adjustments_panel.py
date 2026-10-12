@@ -1,17 +1,29 @@
-"""Adjustments (Properties) panel: brightness / contrast sliders.
+"""Adjustments (Properties) panel: tone/color sliders.
 
-Slider drags coalesce into one undo step (handled in AdjustmentCommand.merge_with).
+Slider drags coalesce into one undo step (AdjustmentCommand.merge_with).
 """
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import (QHBoxLayout, QLabel, QSlider, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QHBoxLayout, QLabel, QPushButton, QSlider,
+                               QVBoxLayout, QWidget)
 
 from ..controller import EditorController
 
+# (key, title, min, max) — slider integer range; value = slider/100.
+ROWS = [
+    ("exposure", "Exposure", -100, 100),
+    ("brightness", "Brightness", -100, 100),
+    ("contrast", "Contrast", -100, 100),
+    ("saturation", "Saturation", -100, 100),
+    ("temperature", "Temperature", -100, 100),
+    ("grayscale", "Grayscale", 0, 100),
+]
+
 
 class _SliderRow(QWidget):
-    def __init__(self, title: str, key: str, controller: EditorController):
+    def __init__(self, title: str, key: str, lo: int, hi: int,
+                 controller: EditorController):
         super().__init__()
         self.key = key
         self.controller = controller
@@ -27,7 +39,7 @@ class _SliderRow(QWidget):
         layout.addLayout(header)
 
         self.slider = QSlider(Qt.Orientation.Horizontal)
-        self.slider.setRange(-100, 100)
+        self.slider.setRange(lo, hi)
         self.slider.setValue(0)
         self.slider.valueChanged.connect(self._on_change)
         layout.addWidget(self.slider)
@@ -55,20 +67,29 @@ class AdjustmentsPanel(QWidget):
         title.setStyleSheet("font-weight:600;")
         layout.addWidget(title)
 
-        self.rows = {
-            "brightness": _SliderRow("Brightness", "brightness", controller),
-            "contrast": _SliderRow("Contrast", "contrast", controller),
-        }
-        for row in self.rows.values():
+        self.rows = {}
+        for key, label, lo, hi in ROWS:
+            row = _SliderRow(label, key, lo, hi, controller)
+            self.rows[key] = row
             layout.addWidget(row)
+
+        self.reset_btn = QPushButton("Reset adjustments")
+        self.reset_btn.clicked.connect(self._reset)
+        layout.addWidget(self.reset_btn)
         layout.addStretch(1)
 
         controller.document_opened.connect(self.refresh)
+        controller.document_changed.connect(self.refresh)
+
+    def _reset(self):
+        for key in self.rows:
+            self.controller.set_adjustment(key, 0.0)
+        self.refresh()
 
     def refresh(self):
         layer = self.controller.document.active_layer if self.controller.document else None
         enabled = layer is not None
-        for key, row in self.rows.items():
-            row.setEnabled(enabled)
-            if layer is not None:
+        self.setEnabled(enabled)
+        if layer is not None:
+            for key, row in self.rows.items():
                 row.sync(layer.adjustments.get(key, 0.0))

@@ -115,10 +115,20 @@ class MainWindow(QMainWindow):
         m_insert.addSeparator()
         m_insert.addAction(self._act("Delete Layer", self.controller.delete_active_layer, "Del"))
 
+        m_filter = mb.addMenu("&Filter")
+        from ..imaging.filters import FILTERS
+        for fname in FILTERS:
+            m_filter.addAction(self._act(fname, lambda _=False, n=fname: self.controller.apply_filter(n)))
+
         m_view = mb.addMenu("&View")
         m_view.addAction(self._act("Zoom In", self.canvas.zoom_in, "Ctrl+="))
         m_view.addAction(self._act("Zoom Out", self.canvas.zoom_out, "Ctrl+-"))
         m_view.addAction(self._act("Fit to Window", self.canvas.fit_to_window, "Ctrl+0"))
+        self.act_compare = QAction("Show Original (Before)", self)
+        self.act_compare.setCheckable(True)
+        self.act_compare.setShortcut(QKeySequence("\\"))
+        self.act_compare.toggled.connect(self._on_compare_toggled)
+        m_view.addAction(self.act_compare)
         m_view.addSeparator()
         m_view.addAction(self._act("Dark Theme", lambda: self.apply_theme(dark=True)))
         m_view.addAction(self._act("Light Theme", lambda: self.apply_theme(dark=False)))
@@ -292,8 +302,14 @@ class MainWindow(QMainWindow):
         self._render(reset_view=True)
         self._update_title()
 
+    def _on_compare_toggled(self, checked: bool):
+        self._render()
+        self.statusBar().showMessage("Showing original (before)" if checked
+                                     else "Showing edited (after)", 2000)
+
     def _render(self, reset_view: bool = False):
-        pixels = self.controller.render()
+        use_adj = not (hasattr(self, "act_compare") and self.act_compare.isChecked())
+        pixels = self.controller.render(use_adjustments=use_adj)
         if pixels is not None:
             self.canvas.set_image(pixels, reset_view=reset_view)
         self._update_actions()

@@ -71,10 +71,10 @@ class EditorController(QObject):
             return
         project_io.export_document(self.document, path, fmt=fmt, **opts)
 
-    def render(self) -> Optional[np.ndarray]:
+    def render(self, use_adjustments: bool = True) -> Optional[np.ndarray]:
         if self.document is None:
             return None
-        return composite(self.document)
+        return composite(self.document, use_adjustments=use_adjustments)
 
     # ---- editing intents ---------------------------------------------
     def _push(self, command):
@@ -132,6 +132,14 @@ class EditorController(QObject):
         layer.offset = (max(0, (self.document.width - size) // 2),
                         max(0, (self.document.height - size) // 2))
         self._push(commands.AddLayerCommand(self.document, layer))
+
+    def apply_filter(self, name: str):
+        from ..imaging.filters import FILTERS
+        layer = self._active()
+        if layer is None or layer.pixels is None or name not in FILTERS:
+            return
+        func, kwargs = FILTERS[name]
+        self._push(commands.FilterCommand(self.document, layer, func, name, **kwargs))
 
     def delete_active_layer(self):
         layer = self._active()
